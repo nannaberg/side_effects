@@ -122,16 +122,22 @@ def get_present_side_effects_dict(
                 # se_old = se
                 se = "Hyperglykæmi eller hypoglykæmi"
                 # print("changing se from {} to {}".format(se_old, se))
+            # if "symptomatisk hypotension" in se.lower():
+            #     print(
+            #         "index: {} - Symptomatisk hypotension was contained in mse: {}".format(
+            #             index, se
+            #         )
+            #     )
             for sexual_se in sexual_side_effects:
                 if sexual_se.lower() in se.lower():
                     include = True
 
                     if sexual_se.lower() != se.lower():
 
-                        # case: if lse is a substring and its superstring is contained in mse -> don't include. The superstring, if it is present in listed_ses, will be registered when it appears as the lse (since then it is not a substring)
-                        lse_superstring = get_lse_superstring(sexual_se, substrings)
-                        if lse_superstring:
-                            if lse_superstring in se:
+                        # case: if lse is a substring and one of its superstring is contained in mse -> don't include. The superstring, if it is present in listed_ses, will be registered when it appears as the lse (either as substring of something whitelisted or as itself)
+                        lse_superstrings = get_lse_superstrings(sexual_se, substrings)
+                        for lse_super in lse_superstrings:
+                            if lse_super in se:
                                 include = False
                         # old solution that did not do it correctly
                         # if (sexual_se, se) in substrings:
@@ -212,11 +218,13 @@ async def get(
 async def main(n_reqs: int, file: str):
     sexual_side_effects = get_listed_sideeffects(file)
     special_cases = get_blacklisted_sideeffects(SPECIAL_CASES_FILE)
-    substrings = []
-    for se in sexual_side_effects:
-        for se2 in sexual_side_effects:
-            if se.lower() != se2.lower() and se.lower() in se2.lower():
-                substrings.append((se, se2))
+    substrings = None
+    if "kardio" in file or "antichol" in file:
+        print("!!special case of kardio/antichol!!")
+        all_lses = get_listed_sideeffects("sideeffect_lists/bivirkninger_maj.txt")
+        substrings = get_substrings(sexual_side_effects, all_lses)
+    else:
+        substrings = get_substrings(sexual_side_effects, sexual_side_effects)
     print(substrings)
     # print(sexual_side_effects)
     timeout = aiohttp.ClientTimeout(total=6 * 60)
@@ -335,7 +343,7 @@ if __name__ == "__main__":
     n_reqs = 11000  # the real one
     # n_reqs = 2951
     # n_reqs = 7780
-    # n_reqs = 1333
+    # n_reqs = 200
 
     args = sys.argv
     if len(args) <= 1:
