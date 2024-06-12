@@ -1,0 +1,16 @@
+Hypertension;der kan føre til refraktær hypokaliæmi og hypertension.
+Diabetes;Hyperglykæmi (ved diabetes)
+Diabetes;Nefrogen diabetes insipidus
+Takykardi;Bradykardi (hos visse patienter dog takykardi)
+Hypotension;Allergiske reaktioner (fx hypotension, angioneurotisk ødem, bronkospasmer, generaliserede hudreaktioner)
+Hypertension;Papilødem (som tegn på benign intrakraniel hypertension)
+Diabetes;Hyperglykæmi (særligt ved diabetes)
+Hypotension;Anafylaktisk reaktion (fx takykardi, hyper- eller hypotension, dyspnø, flushing)
+Takykardi;Anafylaktisk reaktion (fx takykardi, hyper- eller hypotension, dyspnø, flushing)
+Vægtøgning;Nedsat vægtøgning hos børn
+Diabetes;Nefrogen diabetes insipidus (efter seponering)
+Bevægeforstyrrelser;Bevægeforstyrrelser (nedsat bevægelighed i armen)
+Hypotension;Hypersensitivitet (herunder rødme,udslæt,hypotension,angioødem,urticaria, dyspnø).
+Diabetes;Diabetes insipidus
+Rigiditet;Glottisrigiditet
+Hypertension;Pulmonal hypertension

@@ -1,0 +1,72 @@
+Adipositas
+Blodtryksstigning
+Diabetes
+Dyslipidæmi
+Forhøjet blodglucose
+Forhøjet faste-plasma-glucose
+Forhøjet HbA1c
+Forhøjet kolesterol
+Forhøjet triglycerid
+Hyperglykæmi
+Hyperkolesterolæmi
+Hyperlipidæmi
+Hypertension
+Metabolisk syndrom
+Vægtøgning
+Akatisi
+Akut dystoni
+Bevægeforstyrrelser
+Bradykinesi
+Dyskinesier
+Dystoni
+Ekstrapyramidale gener
+Hypokinesi
+Motorisk uro
+Parkinsonisme
+Rigiditet
+Tardive dyskinesier
+Tremor
+Akkommodationsbesvær
+Antikolinerge symptomer
+Ataksi
+Faldtendens
+Konfusion
+Mundtørhed
+Obstipation
+Svimmelhed
+Takykardi
+Urinretention
+Vandladningsbesvær
+Ventrikulær takykardi
+Øget hjertefrekvens
+Øjentørhed
+Hypersomni
+Mareridt
+Søvnforstyrrelser
+Søvnløshed
+Øget drømmeaktivitet
+Døsighed
+Sedation
+Søvnighed
+Træthed
+Alvorlige kardiotoksiske hændelser
+Arytmier
+Blodtryksfald
+Blodtryksstigning
+Breddeforøget QRS-kompleks
+Ekg-forandringer
+Forlænget QT-interval
+Hypertension
+Hypotension
+Kardiovaskulære hændelser
+Ortostatisk hypotension
+Symptomatisk hypotension
+Takyarytmier
+Takykardi
+Torsades de pointes-takykardi
+Uregelmæssig puls
+Vasodilatation
+Øget hjertefrekvens
+Serotoninsyndrom
+Malignt neuroleptikasyndrom
+Malignt neuroleptikasyndrom-lignende tilstand
