@@ -12,7 +12,7 @@ def get_data(file):
     # read by default 1st sheet of an excel file
     df = pd.read_excel(file)
     all_data = df.values.tolist()
-    data = [(x[3], x[4]) for x in all_data if x[0] == "X"]
+    data = [(x[3], x[4], x[2]) for x in all_data if x[0] == "X"]
     return data
 
 
@@ -35,9 +35,9 @@ def get_atc(soup):
 def get_name(soup):
     title = soup.find(attrs={"class": "ptitle"})
     title = title.text.strip().replace("®", "")
-    num_index = next((i for i, c in enumerate(title) if c.isdigit()), len(title))
-    if num_index:
-        title = title[:num_index].strip()
+    # num_index = next((i for i, c in enumerate(title) if c.isdigit()), len(title))
+    # if num_index:
+    #     title = title[:num_index].strip()
     return title
 
 
@@ -55,17 +55,37 @@ async def get(
                 page = await response.text()
                 soup = BeautifulSoup(page, "lxml")
                 m_atc = get_atc(soup)
-                # if int(index) % 100 == 0:
-                #     print(index, status, length)
+                if int(index) % 100 == 0:
+                    print(index, status, length)
                 if m_atc:
                     m_name = get_name(soup)
 
-                for l_atc, l_name in data:
+                # to get list of names to figure out how to get indices
+                # first check for all listed drugs if the current m_drug matches atc and name perfectly
+                # for l_atc, l_name, l_formulation in data:
+                #     if m_atc == l_atc:
+                #         if l_name == m_name:
+                #             return (
+                #                 index,
+                #                 m_atc,
+                #                 m_name,
+                #                 l_name,
+                #                 l_formulation,
+                #                 "perfect match",
+                #             )
+                # then if not, check for all listed drugs if for matching atc's the current m_drug contains the l_name
+                # for l_atc, l_name, l_formulation in data:
+                #     if m_atc == l_atc:
+                #         if l_name in m_name:
+                #             return (index, m_atc, m_name, l_name, l_formulation, "")
+                for l_atc, l_name, l_formulation in data:
                     if m_atc == l_atc:
                         if m_name == l_name:
                             return (l_atc, l_name, index)
                         else:
-                            if l_name in m_name:
+                            if l_name in m_name and l_formulation in m_name:
+                                return (l_atc, l_name, index)
+                            elif l_name in m_name:
                                 print(
                                     "\n{}, ATC: {}, lname: {}, mname: {}".format(
                                         index, l_atc, repr(l_name), repr(m_name)
@@ -76,7 +96,7 @@ async def get(
     return 0
 
 
-async def main(n_reqs: int, single):
+async def main(n_reqs: int, single, data):
     timeout = aiohttp.ClientTimeout(total=6 * 60)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         res = await asyncio.gather(
@@ -88,9 +108,18 @@ async def main(n_reqs: int, single):
             "len(final_res):",
             len(final_res),
         )
-        print("\nfinal results:")
-        print(*final_res, sep="\n")
+        # print("\nfinal results:")
+        # print(*final_res, sep="\n")
         write_to_csv(final_res)
+        # write_names_to_csv(final_res)
+
+
+def write_names_to_csv(final_res):
+    df = pd.DataFrame(
+        final_res,
+        columns=["index", "atc", "m_name", "l_name", "l_formulations", "match type"],
+    )
+    df.to_csv("drug_list_original_names.csv")
 
 
 def write_to_csv(final_res):
@@ -122,11 +151,11 @@ if __name__ == "__main__":
     print(*data[:10], sep="\n")
 
     n_reqs = 11000
-    # n_reqs = 1000
+    # n_reqs = 2000
     single = False
 
     start = perf_counter()
-    asyncio.run(main(n_reqs, single))
+    asyncio.run(main(n_reqs, single, data))
     end = perf_counter()
 
     print(f"{n_reqs / (end - start)} req/s")

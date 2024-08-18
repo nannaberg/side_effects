@@ -16,21 +16,31 @@ doc_base_url = "https://produktresume.dk"
 href = ""
 
 
-def get_search_url(drug):
+# def get_search_url(drug):
+# base_url = "https://produktresume.dk/AppBuilder/search?utf8=%E2%9C%93&q="
+# end_base_url = "&button=search"
+# # print(drug)
+# parts = drug.split()
+# url = base_url + parts[0]
+# for part in parts[1:]:
+#     url += "+" + part
+# url += end_base_url
+# return url
+
+
+def get_search_url(atc):
     base_url = "https://produktresume.dk/AppBuilder/search?utf8=%E2%9C%93&q="
     end_base_url = "&button=search"
-    # print(drug)
-    parts = drug.split()
-    url = base_url + parts[0]
-    for part in parts[1:]:
-        url += "+" + part
+    # print(drug) A11HA08
+    indices = [0, 1, 3, 5]
+    print(zip(indices, indices[1:] + [None]))
+    # parts = [s[i:j] for i,j in zip(indices, indices[1:]+[None])]
+    # parts = drug.split()
+    # url = base_url + parts[0]
+    # for part in parts[1:]:
+    #     url += "+" + part
     url += end_base_url
     return url
-
-
-# def get_search_page(url):
-#     response = requests.get(url)
-
 
 def get_firefox_driver():
     options = Options()
