@@ -31,6 +31,8 @@ def get_search_url(atc):
         url += p + "+"
     url += '"+OR+"' + atc + '"'
     url += end_base_url
+
+    # url = base_url + "blabla" + end_base_url
     return url
 
 
@@ -71,15 +73,31 @@ def get_firefox_driver():
 
 
 def explore_search_results(driver, atc, drug_f):
+    sep = "-------------------"
     titles = []
+    match = ""
+    total_res = 0
     url = get_search_url(atc)
     # print(url)
     driver.get(url)
     driver.implicitly_wait(30)
-    total_res = driver.find_element(By.CLASS_NAME, "total_results").text
-    print(total_res)
+    search_results_header = driver.find_element(By.ID, "search_results_header").text
+    if "Your search returned no results. Showing results for" in search_results_header:
+        print("TRIED TO CORRECT SPELLING")
+        print(sep)
+        return titles, -2, match
+    elif "No results found" in search_results_header:
+        print("NO SEARCH RESULTS FOUND")
+        print(sep)
+        return titles, -1, match
+    # print(search_results_header)
+    if "Showing 1 result" in search_results_header:
+        total_res = 1
+    else:
+        total_res = driver.find_element(By.CLASS_NAME, "total_results").text.split()[0]
+    # print(total_res)
     elms = driver.find_elements(By.CLASS_NAME, "result")
-    # print(len(elms))
+    # print("len(elms): ", len(elms))
     found = 0
     for elm in elms:
         elm_html = elm.get_attribute(
@@ -88,6 +106,7 @@ def explore_search_results(driver, atc, drug_f):
         soup = BeautifulSoup(elm_html, "lxml")
         # print(soup.a.prettify())
         title = soup.a.get_text()
+        date = soup.find("span", class_="field_values").get_text().strip()
         # print("Whole title: ", title)
         if not "," in title:
             print(
@@ -99,45 +118,46 @@ def explore_search_results(driver, atc, drug_f):
         web_f = title.split(",", 1)[1]
         if all(f in web_f for f in drug_f.split(",")):
             found += 1
-        titles.append(title)
+        titles.append(date + "," + title)
         # print(text)
     if len(elms) < 1:
-        print("\t{}, {} -- NO SEARCH RESULTS ".format(atc, drug_f))
+        print("\t{}, {} -- NONO SEARCH RESULTS ".format(atc, drug_f))
     elif found == 0:
         print("\t{}, {} -- NOT FOUND ".format(atc, drug_f))
+        match = found
         # print("----------\n")
     elif found > 1:
         print("\t{}, {} -- FOUND {} MATCHES".format(atc, drug_f, found))
+        match = found
         # print("----------\n")
     else:
-        print("{}, {}".format(atc, drug_f))
-    return titles, total_res.split()[0]
+        print("{}, {} -- FOUND EXACTLY ONE MATCH".format(atc, drug_f))
+        match = found
+    print(sep)
+    return titles, total_res, match
 
 
 def main():
     overview = []
     data = get_all_prioritized_data_with_or_without_indices()
     driver = get_firefox_driver()
-    for d in data[:1]:
+    for d in data:
         drug_f = d[1]
         atc = d[2]
-        # print(atc)
-        titles, total_res = explore_search_results(driver, atc, drug_f)
+        titles, total_res, match = explore_search_results(driver, atc, drug_f)
         temp = [atc, drug_f]
+        temp.append(total_res)
+        temp.append(match)
         temp.extend(titles)
-        print(total_res)
-        overview.append(atc)
-        overview.append(drug_f)
-        overview.append(total_res)
         overview.append(temp)
 
-    for o in overview:
-        print(o)
+    # for o in overview:
+    #     print(o)
     driver.quit()
-    cols = ["ATC", "FORMULERING", "TOTAL_RES"]
+    cols = ["ATC", "FORMULERING", "TOTAL_RES", "MATCH"]
     for i in range(10):
         cols.append("TITLE")
-    write_to_csv(overview, cols, "docs_titles_found_by_atc")
+    write_to_csv(overview, cols, "docs_titles_found_by_atc_and_f")
 
 
 if __name__ == "__main__":

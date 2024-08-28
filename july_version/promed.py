@@ -47,6 +47,72 @@ def get_liver_info(soup, atc, index):
         print("{}, {}, NO LIVER DOSE REDUCTION".format(index, atc))
 
 
+def get_kidney_info(soup, atc, index):
+    header = soup.find(
+        lambda tag: tag.name == "h3" and "Nedsat nyrefunktion" in tag.text
+    )
+    if header:
+        kidney_div = header.parent.find_next_sibling("div")
+
+        # print("{}, {}".format(index, atc))
+        table = kidney_div.find("table")
+        ul = kidney_div.find("ul")
+        if table:
+            # print("{}, {} HAS KIDNEY TABLE".format(index, atc))
+            return "table, what to do"
+        elif ul:
+            # print("{}, {} HAS UL/LIST".format(index, atc))
+            return "ul, what to do"
+        else:
+            # print("{}, {}".format(index, atc))
+            gfr_sections = kidney_div.find_all("p", class_="glob-padTop20")
+
+            beregn_tag = kidney_div.find_all("div", class_="glob-padbtm20")
+            if len(beregn_tag) > 1:
+                print("{}, {}: MORE THAN ONE glob-padbtm20 div".format(index, atc))
+
+            if beregn_tag:
+                # print(beregn_tag[0].p.text)
+                beregn_sibling = beregn_tag[0].findNextSiblings()
+                if beregn_sibling:
+                    print(beregn_sibling[0].prettify())
+                    print("{}, {}: MORE SIBLNGS".format(index, atc))
+            else:
+                print("{}, {}: NO BEREGN TAG".format(index, atc))
+                # print("!!!there is more after beregn!!!")
+            # else:
+            #     print("{}, {} NO BEREGN TAG".format(index, atc))
+
+            # print(beregn_tag.text)
+            # beregn_ps = beregn_tag
+
+            gfr_dict = {}
+            for gfr_section in gfr_sections:
+                first_section_text = gfr_section.text
+                # print("LINE: ", first_section_text)
+                for sibling in gfr_section.find_next_siblings():
+                    # print("CLASS: ", sibling.get("class"))
+                    sibling_class_list = sibling.get("class")
+                    if sibling_class_list:
+                        if (
+                            sibling_class_list[0] == "glob-padTop20"
+                            or sibling_class_list[0] == "glob-padbtm20"
+                        ):
+                            # print("-------------")
+                            break  # iterate through siblings until separator is encoutnered
+                    else:
+                        pass
+                        # print("LINE: ", sibling.text)
+        # print("-------------------------------------------------")
+        # print(kidney_div.prettify())
+        # print("---------------------------------------")
+        return "yes"
+
+    else:
+        # print("{}, {}, NO KIDNEY DOSE REDUCTION".format(index, atc))
+        return "n/a"
+
+
 def get_registered_indications(soup, atc_code, index):
     header = soup.find(
         lambda tag: tag.name == "h3" and "Anvendelsesområder" in tag.text
@@ -149,7 +215,8 @@ async def get(
                 page = await response.text()
                 soup = BeautifulSoup(page, "lxml")
                 # get_registered_indications(soup, l_atc, index)
-                get_liver_info(soup, l_atc, index)
+                # get_liver_info(soup, l_atc, index)
+                get_kidney_info(soup, l_atc, index)
                 # get_dose_reduction_info(soup, l_atc, index)
 
             else:
