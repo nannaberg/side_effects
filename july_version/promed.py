@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import asyncio
 import aiohttp
 from time import perf_counter
+from drug_list_handling import write_to_csv, write_to_csv_renal
 
 
 # Function to remove tags
@@ -47,48 +48,77 @@ def get_liver_info(soup, atc, index):
         print("{}, {}, NO LIVER DOSE REDUCTION".format(index, atc))
 
 
+def check_kidney_section_structure(kidney_div, atc, index):
+    table = kidney_div.find("table")
+    ul = kidney_div.find("ul")
+    if table:
+        # print("{}, {} HAS KIDNEY TABLE".format(index, atc))
+        return "table"
+    elif ul:
+        # print("{}, {} HAS UL/LIST".format(index, atc))
+        return "ul/list"
+    else:
+        # print("{}, {}".format(index, atc))
+        gfr_sections = kidney_div.find_all("p", class_="glob-padTop20")
+
+        beregn_tag = kidney_div.find("div", class_="glob-padbtm20")
+        # beregn_tag = kidney_div.find_all("div", class_="glob-padbtm20")
+        # if len(beregn_tag) > 1:
+        #     print("{}, {}: MORE THAN ONE glob-padbtm20 div".format(index, atc))
+
+        if beregn_tag:
+            beregn_siblings = beregn_tag.findNextSiblings()
+            if beregn_siblings:
+                pass
+                # print("{}, {}: MORE SIBLNGS".format(index, atc))
+            for beregn_sib in beregn_siblings:
+                if beregn_sib.has_attr("class"):
+                    if beregn_sib["class"][0] != "referencer":
+                        print("beregn sib with class that is NOT referencer")
+                        print(beregn_sib.prettify())
+                else:
+                    print("{}, {}: MORE INFO".format(index, atc))
+                    print(beregn_sib.prettify())
+                print("--------------------")
+
+        else:
+            pass
+            # print("{}, {}: NO BEREGN TAG".format(index, atc))
+            # print("!!!there is more after beregn!!!")
+        # else:
+        #     print("{}, {} NO BEREGN TAG".format(index, atc))
+
+        # print(beregn_tag.text)
+        # beregn_ps = beregn_tag
+
+
 def get_kidney_info(soup, atc, index):
-    header = soup.find(
+    res = []
+    renal_header = soup.find(
         lambda tag: tag.name == "h3" and "Nedsat nyrefunktion" in tag.text
     )
-    if header:
-        kidney_div = header.parent.find_next_sibling("div")
-
-        # print("{}, {}".format(index, atc))
+    if renal_header:
+        kidney_div = renal_header.parent.find_next_sibling("div")
         table = kidney_div.find("table")
         ul = kidney_div.find("ul")
+
         if table:
-            # print("{}, {} HAS KIDNEY TABLE".format(index, atc))
-            return "table, what to do"
+            res.append("table")
         elif ul:
-            # print("{}, {} HAS UL/LIST".format(index, atc))
-            return "ul, what to do"
+            res.append("ul")
         else:
-            # print("{}, {}".format(index, atc))
             gfr_sections = kidney_div.find_all("p", class_="glob-padTop20")
+            # if no glob-padTop20s:
+            if not gfr_sections:
+                print("{}, {} HAS NO glob-padTop20 tag".format(index, atc))
+                kidney_ps = kidney_div.find_all("p")
+                for kidney_p in kidney_ps:
+                    res.append(kidney_p.get_text(strip=True))
 
-            beregn_tag = kidney_div.find_all("div", class_="glob-padbtm20")
-            if len(beregn_tag) > 1:
-                print("{}, {}: MORE THAN ONE glob-padbtm20 div".format(index, atc))
-
-            if beregn_tag:
-                # print(beregn_tag[0].p.text)
-                beregn_sibling = beregn_tag[0].findNextSiblings()
-                if beregn_sibling:
-                    print(beregn_sibling[0].prettify())
-                    print("{}, {}: MORE SIBLNGS".format(index, atc))
-            else:
-                print("{}, {}: NO BEREGN TAG".format(index, atc))
-                # print("!!!there is more after beregn!!!")
-            # else:
-            #     print("{}, {} NO BEREGN TAG".format(index, atc))
-
-            # print(beregn_tag.text)
-            # beregn_ps = beregn_tag
-
-            gfr_dict = {}
             for gfr_section in gfr_sections:
                 first_section_text = gfr_section.text
+                res.append(first_section_text)
+                # kidney_text += first_section_text + sep
                 # print("LINE: ", first_section_text)
                 for sibling in gfr_section.find_next_siblings():
                     # print("CLASS: ", sibling.get("class"))
@@ -99,18 +129,36 @@ def get_kidney_info(soup, atc, index):
                             or sibling_class_list[0] == "glob-padbtm20"
                         ):
                             # print("-------------")
+                            res.append("\n")
                             break  # iterate through siblings until separator is encoutnered
                     else:
-                        pass
-                        # print("LINE: ", sibling.text)
-        # print("-------------------------------------------------")
-        # print(kidney_div.prettify())
+                        res.append(sibling.text)
+            # print("---------------------------------------")
+
+            # dealing with potentially relevant extra info after the calculator
+            beregn_tag = kidney_div.find("div", class_="glob-padbtm20")
+            if beregn_tag:
+                beregn_siblings = beregn_tag.findNextSiblings()
+                if beregn_siblings:
+                    pass
+                    # print("{}, {}: MORE SIBLNGS".format(index, atc))
+                for beregn_sib in beregn_siblings:
+                    if beregn_sib.has_attr("class"):
+                        if beregn_sib["class"][0] != "referencer":
+                            print("beregn sib with class that is NOT referencer")
+                            print(beregn_sib.prettify())
+                    else:
+                        print("{}, {}: MORE INFO".format(index, atc))
+                        print(beregn_sib.prettify())
+                    print("--------------------")
         # print("---------------------------------------")
-        return "yes"
+        if res[-1] == "\n":
+            res.pop()
+        return res
 
     else:
-        # print("{}, {}, NO KIDNEY DOSE REDUCTION".format(index, atc))
-        return "n/a"
+        res.append("na")
+    return res
 
 
 def get_registered_indications(soup, atc_code, index):
@@ -216,7 +264,9 @@ async def get(
                 soup = BeautifulSoup(page, "lxml")
                 # get_registered_indications(soup, l_atc, index)
                 # get_liver_info(soup, l_atc, index)
-                get_kidney_info(soup, l_atc, index)
+                basis = [index, l_atc]
+                basis.append(get_kidney_info(soup, l_atc, index))
+                return basis
                 # get_dose_reduction_info(soup, l_atc, index)
 
             else:
@@ -231,13 +281,15 @@ async def main(data):
         res = await asyncio.gather(*[get(session, d) for d in data])
 
         final_res = [r for r in res if r]
+        # print("final res", final_res)
         # print(
         #     "len(final_res):",
         #     len(final_res),
         # )
         # print("\nfinal results:")
         # print(*final_res, sep="\n")
-        # write_to_csv(final_res)
+
+        write_to_csv_renal(final_res, ["index", "atc", "renal_info"], "renal_info")
         # write_names_to_csv(final_res)
 
 
@@ -247,7 +299,8 @@ if __name__ == "__main__":
     # print(*data[:10], sep="\n")
 
     start = perf_counter()
-    asyncio.run(main(data))
+    data_used = data[:250]
+    asyncio.run(main(data_used))
     end = perf_counter()
 
     # print(f"{len(data) / (end - start)} req/s")
