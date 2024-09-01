@@ -61,35 +61,35 @@ def check_kidney_section_structure(kidney_div, atc, index):
         # print("{}, {}".format(index, atc))
         gfr_sections = kidney_div.find_all("p", class_="glob-padTop20")
 
-        beregn_tag = kidney_div.find("div", class_="glob-padbtm20")
-        # beregn_tag = kidney_div.find_all("div", class_="glob-padbtm20")
-        # if len(beregn_tag) > 1:
+        calc_tag = kidney_div.find("div", class_="glob-padbtm20")
+        # calc_tag = kidney_div.find_all("div", class_="glob-padbtm20")
+        # if len(calc_tag) > 1:
         #     print("{}, {}: MORE THAN ONE glob-padbtm20 div".format(index, atc))
 
-        if beregn_tag:
-            beregn_siblings = beregn_tag.findNextSiblings()
-            if beregn_siblings:
-                pass
-                # print("{}, {}: MORE SIBLNGS".format(index, atc))
-            for beregn_sib in beregn_siblings:
-                if beregn_sib.has_attr("class"):
-                    if beregn_sib["class"][0] != "referencer":
-                        print("beregn sib with class that is NOT referencer")
-                        print(beregn_sib.prettify())
+        if calc_tag:
+            calc_siblings = calc_tag.findNextSiblings()
+            # if calc_siblings:
+            #     pass
+            # print("{}, {}: MORE SIBLNGS".format(index, atc))
+            for calc_sib in calc_siblings:
+                if calc_sib.has_attr("class"):
+                    if calc_sib["class"][0] != "referencer":
+                        print("calc sib with class that is NOT referencer")
+                        print(calc_sib.prettify())
                 else:
                     print("{}, {}: MORE INFO".format(index, atc))
-                    print(beregn_sib.prettify())
+                    print(calc_sib.prettify())
                 print("--------------------")
 
         else:
             pass
-            # print("{}, {}: NO BEREGN TAG".format(index, atc))
-            # print("!!!there is more after beregn!!!")
+            # print("{}, {}: NO calc TAG".format(index, atc))
+            # print("!!!there is more after calc!!!")
         # else:
-        #     print("{}, {} NO BEREGN TAG".format(index, atc))
+        #     print("{}, {} NO calc TAG".format(index, atc))
 
-        # print(beregn_tag.text)
-        # beregn_ps = beregn_tag
+        # print(calc_tag.text)
+        # calc_ps = calc_tag
 
 
 def get_kidney_info(soup, atc, index):
@@ -105,12 +105,17 @@ def get_kidney_info(soup, atc, index):
         if table:
             res.append("table")
         elif ul:
+
+            # all_tags = [tag.name for tag in kidney_div.find_all(True)]
+            # print("{}, {}: TABLE, tags: {}".format(index, atc, all_tags))
             res.append("ul")
         else:
             gfr_sections = kidney_div.find_all("p", class_="glob-padTop20")
+            all_tags = list(set([tag.name for tag in kidney_div.find_all(True)]))
+            # print("{}, {}: standard, all unique tags: {}".format(index, atc, all_tags))
             # if no glob-padTop20s:
             if not gfr_sections:
-                print("{}, {} HAS NO glob-padTop20 tag".format(index, atc))
+                # print("{}, {} HAS NO glob-padTop20 tag".format(index, atc))
                 kidney_ps = kidney_div.find_all("p")
                 for kidney_p in kidney_ps:
                     res.append(kidney_p.get_text(strip=True))
@@ -135,22 +140,43 @@ def get_kidney_info(soup, atc, index):
                         res.append(sibling.text)
             # print("---------------------------------------")
 
-            # dealing with potentially relevant extra info after the calculator
-            beregn_tag = kidney_div.find("div", class_="glob-padbtm20")
-            if beregn_tag:
-                beregn_siblings = beregn_tag.findNextSiblings()
-                if beregn_siblings:
-                    pass
-                    # print("{}, {}: MORE SIBLNGS".format(index, atc))
-                for beregn_sib in beregn_siblings:
-                    if beregn_sib.has_attr("class"):
-                        if beregn_sib["class"][0] != "referencer":
-                            print("beregn sib with class that is NOT referencer")
-                            print(beregn_sib.prettify())
+            # dealing with potentially relevant extra info after the calc
+            calc_tag = kidney_div.find("div", class_="glob-padbtm20")
+            # if index == "7402":
+            #     print("7402:", calc_tag.prettify())
+            if calc_tag:
+                calc_siblings = calc_tag.findNextSiblings()
+                # if calc_siblings:
+                # print("LEN: ", len(calc_siblings))
+                # print(calc_siblings.prettify())
+                # if calc_siblings:
+                #     # pass
+                #     print("{}, {}: MORE SIBLNGS".format(index, atc))
+                for calc_sib in calc_siblings:
+                    if calc_sib.has_attr("class"):
+                        # print("it had class")
+                        # print(calc_sib.prettify())
+                        if calc_sib["class"][0] != "referencer":
+                            print("calc sib with class that is NOT referencer")
+                            print(calc_sib.prettify())
                     else:
-                        print("{}, {}: MORE INFO".format(index, atc))
-                        print(beregn_sib.prettify())
-                    print("--------------------")
+                        res.append(calc_sib.get_text(strip=True))
+                        # print(
+                        #     "{}, {}: MORE INFO, tag: {}".format(
+                        #         index, atc, calc_sib.name
+                        #     )
+                        # )
+                        # print("{}, {}: MORE INFO".format(index, atc))
+                        # print(calc_sib.prettify())
+                        # actually_all_tags = [
+                        #     tag.name for tag in calc_sib.find_all(True)
+                        # ]
+                        # print(
+                        #     "{}, {}: MORE INFO, all tags: {}".format(
+                        #         index, atc, actually_all_tags
+                        #     )
+                        # )
+                    # print("--------------------")
         # print("---------------------------------------")
         if res[-1] == "\n":
             res.pop()
@@ -262,9 +288,10 @@ async def get(
             if status == 200 and length > 9000:
                 page = await response.text()
                 soup = BeautifulSoup(page, "lxml")
-                # get_registered_indications(soup, l_atc, index)
-                # get_liver_info(soup, l_atc, index)
                 basis = [index, l_atc]
+                get_registered_indications(soup, l_atc, index)
+                # get_liver_info(soup, l_atc, index)
+
                 basis.append(get_kidney_info(soup, l_atc, index))
                 return basis
                 # get_dose_reduction_info(soup, l_atc, index)
@@ -299,7 +326,9 @@ if __name__ == "__main__":
     # print(*data[:10], sep="\n")
 
     start = perf_counter()
-    data_used = data[:250]
+    # print(data[0])
+    data_used = [d for d in data if d[4] == "4104"]
+    # print(data_used)
     asyncio.run(main(data_used))
     end = perf_counter()
 
