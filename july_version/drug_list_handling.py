@@ -61,20 +61,23 @@ def write_to_csv_renal(input, cols, dst):
             # print("ENTRY: ", entry)
             index = entry[0]
             atc = entry[1]
-            renal_info = entry[2]
+            # renal_info = entry[2]
+            reg_ind_text = entry[2]
+
             # print("RENAL INFO: ", renal_info)
             row = []
             row.append(index)
             row.append(atc)
+            row.append(reg_ind_text)
             # print("Entry: ", entry)
             # renal_info_formated = "\n".join(renal_info)
             # print(renal_info)
-            renal_info_formated = "\n".join(
-                [x if x != "\n" else "" for x in renal_info]
-            )
+            # renal_info_formated = "\n".join(
+            #     [x if x != "\n" else "" for x in renal_info]
+            # )
             # print(renal_info_formated)
-            # print("ses: ", ses)
-            row.append(renal_info_formated)
+            # # print("ses: ", ses)
+            # row.append(renal_info_formated)
             # print("row", row)
             # print(row)
             # thelist =

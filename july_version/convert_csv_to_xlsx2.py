@@ -25,6 +25,7 @@ else:
         # # saving the excel file
         # ex.close()
         renal_info_col = "renal_info"
+        renal_info_col = "registered indication"
         print(repr(df[renal_info_col]))
         # for row in df[renal_info_col]:
         #     print("row: ", row)
@@ -37,11 +38,10 @@ else:
         ) as writer:
             df.to_excel(writer, index=False)
             # print(repr(df["renal_info"]))
-            # df["renal_info"] = "This is \n a test my friendd \nyir"
             workbook = writer.book
             worksheet = writer.sheets["Sheet1"]
             header_format = workbook.add_format(
-                {"bold": False, "border": False, "text_wrap": True}
+                {"bold": True, "border": False, "text_wrap": True}
             )
 
             for col_num, value in enumerate(df.columns.values):
@@ -51,4 +51,4 @@ else:
             idx_location = df.columns.get_loc(renal_info_col)
             worksheet.set_column(idx_location, idx_location, 60, twrap)
 
-            worksheet.set_row(0, 30, twrap)
+            # worksheet.set_row(0, 30, twrap)
