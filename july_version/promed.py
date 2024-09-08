@@ -10,6 +10,7 @@ import lxml.html as lh
 import lxml.etree as etree
 import lxml
 import html2text
+from collections import Counter
 
 
 # Function to remove tags
@@ -39,19 +40,19 @@ def get_dose_reduction_info(soup, atc, index):
         # print("{}, {}:\n NO INFO".format(index, atc))
 
 
-def get_liver_info(soup, atc, index):
-    header = soup.find(
-        lambda tag: tag.name == "h3" and "Nedsat leverfunktion" in tag.text
-    )
-    if header:
-        liver_div = header.parent.find_next_sibling("div")
+# def get_liver_info(soup, atc, index):
+#     header = soup.find(
+#         lambda tag: tag.name == "h3" and "Nedsat leverfunktion" in tag.text
+#     )
+#     if header:
+#         liver_div = header.parent.find_next_sibling("div")
 
-        pure_text = remove_tags(liver_div)
-        if "let" in pure_text:
-            print("{}, {}:\n {}\n".format(index, atc, pure_text))
-    else:
-        # pass
-        print("{}, {}, NO LIVER DOSE REDUCTION".format(index, atc))
+#         pure_text = remove_tags(liver_div)
+#         if "let" in pure_text:
+#             print("{}, {}:\n {}\n".format(index, atc, pure_text))
+#     else:
+#         # pass
+#         print("{}, {}, NO LIVER DOSE REDUCTION".format(index, atc))
 
 
 def check_kidney_section_structure(kidney_div, atc, index):
@@ -98,134 +99,81 @@ def check_kidney_section_structure(kidney_div, atc, index):
         # calc_ps = calc_tag
 
 
-def get_kidney_info(soup, atc, index):
+def get_renal_info(soup, atc, index):
 
     # res = []
     res = "na"
+    no_tables = 0
+    bool_inner_tables = False
     renal_header = soup.find(
         lambda tag: tag.name == "h3" and "Nedsat nyrefunktion" in tag.text
     )
     if renal_header:
         renal_div = renal_header.parent.find_next_sibling("div")
+        # print(renal_div.prettify())
+        inner_tables = []
 
-        tables = renal_div.find("table")
-        print("{}, {}: table length: {}".format(index, atc, len(tables)))
+        tables = renal_div.findAll("table")
+        no_tables = len(tables)
+
+        # if no_tables == 2:
+        #     for table in tables:
+        #         if table.findAll("table"):
+        #             bool_inner_tables = True
+        # if not tables:
+        #     print("{}, {}: RENAL BUT NO TABLE".format(index, atc))
+        for table in tables:
+            all_inner_tables = table.findAll("table")
+            if all_inner_tables:
+                bool_inner_tables = True
+                inner_tables.append(len(all_inner_tables))
+            else:
+                inner_tables.append(0)
+        # print("{}, {}: table length: {}".format(index, atc, len(tables)))
+        res = inner_tables
         # h = html2text.HTML2Text()
         # h.ignore_links = True
         # res = h.handle(str(renal_div))
-        # print("{}, {}".format(index, atc))
-        # print(res)
 
-        # table = kidney_div.find("table")
-        # if index == "5965":
-        #     print("TABLE: ", table)
-        # ul = kidney_div.find("ul")
-
-        # if table:
-        #     res.append("table")
-        # elif ul:
-
-        #     # all_tags = [tag.name for tag in kidney_div.find_all(True)]
-        #     # print("{}, {}: TABLE, tags: {}".format(index, atc, all_tags))
-        #     res.append("ul")
-        # else:
-        #     gfr_sections = kidney_div.find_all("p", class_="glob-padTop20")
-        #     all_tags = list(set([tag.name for tag in kidney_div.find_all(True)]))
-        #     # print("{}, {}: standard, all unique tags: {}".format(index, atc, all_tags))
-        #     # if no glob-padTop20s:
-        #     if not gfr_sections:
-        #         # print("{}, {} HAS NO glob-padTop20 tag".format(index, atc))
-        #         kidney_ps = kidney_div.find_all("p")
-        #         for kidney_p in kidney_ps:
-        #             res.append(kidney_p.get_text(strip=True))
-
-        #     for gfr_section in gfr_sections:
-        #         first_section_text = gfr_section.text
-        #         res.append(first_section_text)
-        #         # kidney_text += first_section_text + sep
-        #         # print("LINE: ", first_section_text)
-        #         for sibling in gfr_section.find_next_siblings():
-        #             # print("CLASS: ", sibling.get("class"))
-        #             sibling_class_list = sibling.get("class")
-        #             if sibling_class_list:
-        #                 if (
-        #                     sibling_class_list[0] == "glob-padTop20"
-        #                     or sibling_class_list[0] == "glob-padbtm20"
-        #                 ):
-        #                     # print("-------------")
-        #                     res.append("\n")
-        #                     break  # iterate through siblings until separator is encoutnered
-        #             else:
-        #                 res.append(sibling.text)
-        #     # print("---------------------------------------")
-
-        #     # dealing with potentially relevant extra info after the calc
-        #     calc_tag = kidney_div.find("div", class_="glob-padbtm20")
-        #     # if index == "7402":
-        #     #     print("7402:", calc_tag.prettify())
-        #     if calc_tag:
-        #         calc_siblings = calc_tag.findNextSiblings()
-        #         # if calc_siblings:
-        #         # print("LEN: ", len(calc_siblings))
-        #         # print(calc_siblings.prettify())
-        #         # if calc_siblings:
-        #         #     # pass
-        #         #     print("{}, {}: MORE SIBLNGS".format(index, atc))
-        #         for calc_sib in calc_siblings:
-        #             if calc_sib.has_attr("class"):
-        #                 # print("it had class")
-        #                 # print(calc_sib.prettify())
-        #                 if calc_sib["class"][0] != "referencer":
-        #                     print("calc sib with class that is NOT referencer")
-        #                     print(calc_sib.prettify())
-        #             else:
-        #                 res.append(calc_sib.get_text(strip=True))
-        #                 # print(
-        #                 #     "{}, {}: MORE INFO, tag: {}".format(
-        #                 #         index, atc, calc_sib.name
-        #                 #     )
-        #                 # )
-        #                 # print("{}, {}: MORE INFO".format(index, atc))
-        #                 # print(calc_sib.prettify())
-        #                 # actually_all_tags = [
-        #                 #     tag.name for tag in calc_sib.find_all(True)
-        #                 # ]
-        #                 # print(
-        #                 #     "{}, {}: MORE INFO, all tags: {}".format(
-        #                 #         index, atc, actually_all_tags
-        #                 #     )
-        #                 # )
-        #             # print("--------------------")
-        # # print("---------------------------------------")
-        # if res[-1] == "\n":
-        #     res.pop()
-        # return res
-
-    # else:
-    #     res.append("na")
-    return res
+    return (no_tables, bool_inner_tables, res)
 
 
-def get_registered_indications(soup, atc_code, index):
-    header = soup.find(
-        lambda tag: tag.name == "h3" and "Anvendelsesområder" in tag.text
-    )
-    if not header.text.strip() == "Anvendelsesområder":
+def get_text(soup, atc_code, index, text_header):
+    header = soup.find(lambda tag: tag.name == "h3" and text_header in tag.text)
+
+    if not header.text.strip() == text_header:
         raise Exception(
-            "Ambiguity regarding registered indication header: {}, {}".format(
+            "Ambiguity regarding contraindication header: {}, {}".format(
                 atc_code, index
             )
         )
+    res = "na"
+    if header:
+        div = header.parent.find_next_sibling("div")
+        h = html2text.HTML2Text()
+        h.ignore_links = True
+        res = h.handle(str(div))
+    return res
 
-    reg_ind_div = header.parent.find_next_sibling("div")
-    h = html2text.HTML2Text()
-    h.ignore_links = True
-    alltext = h.handle(str(reg_ind_div))
-    # return alltext.split("\n")
-    return alltext
-    # print(realtext)
-    # print("--------------")
-    # print(repr(realtext))
+
+def get_liver_info(soup, atc_code, index, text_header):
+
+    header = soup.find(lambda tag: tag.name == "h3" and text_header in tag.text)
+
+    res = "No"
+    if header:
+        if not header.text.strip() == text_header:
+            raise Exception(
+                "Ambiguity regarding {} header: {}, {}".format(
+                    text_header, atc_code, index
+                )
+            )
+
+        div = header.parent.find_next_sibling("div")
+        h = html2text.HTML2Text()
+        h.ignore_links = True
+        res = h.handle(str(div))
+    return res
 
 
 async def get(
@@ -254,10 +202,20 @@ async def get(
                 page = await response.text()
                 soup = BeautifulSoup(page, "lxml")
                 basis = [index, l_atc]
+                text_headers = [
+                    "Anvendelsesområder",
+                    "Kontraindikationer",
+                    "Forsigtighedsregler",
+                ]
+                for text_header in text_headers:
+                    basis.append(get_text(soup, l_atc, index, text_header))
+                    if text_header == "Forsigtighedsregler":
+                        print(get_text(soup, l_atc, index, text_header))
+                basis.append(get_liver_info(soup, l_atc, index, "Nedsat leverfunktion"))
                 # basis.append(get_registered_indications(soup, l_atc, index))
                 # get_liver_info(soup, l_atc, index)
-
-                basis.append(get_kidney_info(soup, l_atc, index))
+                # basis.append(get_contraindications(soup, l_atc, index))
+                # basis.append(get_renal_info(soup, l_atc, index))
                 return basis
                 # get_dose_reduction_info(soup, l_atc, index)
 
@@ -273,14 +231,44 @@ async def main(data):
         res = await asyncio.gather(*[get(session, d) for d in data])
 
         final_res = [r for r in res if r]
+        # tables_w_inner = [r for r in final_res if r[2][1]]
+        # # print(*two_tables_wo_inner, sep="\n")
+        # print("no pages with inner tables: ", len(tables_w_inner))
+        # print(*tables_w_inner, sep="\n")
+
+        # all_tables = [len(r[2]) if r[2] != "na" else r[2] for r in final_res]
+        # print(Counter(all_tables))
+        # print(all_tables)
+        # for i in [2, 3, 7, 4]:
+        #     for res in final_res:
+        #         if len(res[2]) == i:
+        #             print("{}, {}: {}".format(res[0], res[1], res[2]))
+        #     print("--------------------")
+        # for res in final_res:
+        #     if res[2] == 3:
+        #         print("{}, {}: {}", res[0], res[1], res[2])
+        # for res in final_res:
+        #     if res[2] == 7:
+        #         print("{}, {}: {}", res[0], res[1], res[2])
+        # for res in final_res:
+        #     if res[2] == 1:
+        #         print("{}, {}: {}", res[0], res[1], res[2])
+        # print(all_tables)
 
         # columns = ["index", "atc", "registered indication", "renal_info"]
-        # columns = ["index", "atc", "registered indication"]
-        # write_to_csv_renal(
-        #     final_res,
-        #     columns,
-        #     "renal_info",
-        # )
+        columns = [
+            "index",
+            "atc",
+            "registered indication",
+            "contraindications",
+            "warnings",
+            "liver reduction",
+        ]
+        write_to_csv_renal(
+            final_res,
+            columns,
+            "renal_info",
+        )
 
 
 if __name__ == "__main__":
@@ -290,9 +278,9 @@ if __name__ == "__main__":
 
     start = perf_counter()
     # print(data[0])
-    indices = ["4104", "5988", "5965"]
+    indices = ["4104", "5988", "5965", "9989"]
     data_used = [d for d in data if d[4] in indices]
-    data_used = data
+    # data_used = data
     # data_used = [d for d in data if d[4] == "5965"]
     # print(data_used)
     asyncio.run(main(data_used))

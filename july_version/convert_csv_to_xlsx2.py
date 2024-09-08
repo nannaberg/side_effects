@@ -24,9 +24,10 @@ else:
 
         # # saving the excel file
         # ex.close()
-        renal_info_col = "renal_info"
-        renal_info_col = "registered indication"
-        print(repr(df[renal_info_col]))
+        # renal_info_col = "renal_info"
+        # renal_info_col = "registered indication"
+        text_cols = ["registered indication", "contraindications", "warnings", "liver"]
+        # print(repr(df[renal_info_col]))
         # for row in df[renal_info_col]:
         #     print("row: ", row)
         # df[renal_info_col] = df[renal_info_col].str.join("\n")
@@ -48,7 +49,10 @@ else:
                 worksheet.write(0, col_num, value, header_format)
 
             twrap = workbook.add_format({"text_wrap": True})
-            idx_location = df.columns.get_loc(renal_info_col)
-            worksheet.set_column(idx_location, idx_location, 60, twrap)
+
+            for c in text_cols:
+                idx_location = df.columns.get_loc(c)
+                worksheet.set_column(idx_location, idx_location, 60, twrap)
+            print("all OK!")
 
             # worksheet.set_row(0, 30, twrap)

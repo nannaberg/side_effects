@@ -63,12 +63,18 @@ def write_to_csv_renal(input, cols, dst):
             atc = entry[1]
             # renal_info = entry[2]
             reg_ind_text = entry[2]
+            contraindications = entry[3]
+            warnings = entry[4]
+            liver = entry[5]
 
             # print("RENAL INFO: ", renal_info)
             row = []
             row.append(index)
             row.append(atc)
             row.append(reg_ind_text)
+            row.append(contraindications)
+            row.append(warnings)
+            row.append(liver)
             # print("Entry: ", entry)
             # renal_info_formated = "\n".join(renal_info)
             # print(renal_info)
