@@ -141,14 +141,14 @@ def get_renal_info(soup, atc, index):
 def get_text(soup, atc_code, index, text_header):
     header = soup.find(lambda tag: tag.name == "h3" and text_header in tag.text)
 
-    if not header.text.strip() == text_header:
-        raise Exception(
-            "Ambiguity regarding contraindication header: {}, {}".format(
-                atc_code, index
-            )
-        )
     res = "na"
     if header:
+
+        if not header.text.strip() == text_header:
+            raise Exception(
+                "Ambiguity regarding {text_header} header: {atc_code}, {index}"
+            )
+
         div = header.parent.find_next_sibling("div")
         h = html2text.HTML2Text()
         h.ignore_links = True
@@ -160,7 +160,7 @@ def get_liver_info(soup, atc_code, index, text_header):
 
     header = soup.find(lambda tag: tag.name == "h3" and text_header in tag.text)
 
-    res = "No"
+    res = "Nej"
     if header:
         if not header.text.strip() == text_header:
             raise Exception(
@@ -173,6 +173,24 @@ def get_liver_info(soup, atc_code, index, text_header):
         h = html2text.HTML2Text()
         h.ignore_links = True
         res = h.handle(str(div))
+    return res
+
+
+def get_halftime(soup, atc, index, text_header):
+    res = "na"
+    farmakokinetik = get_text(soup, atc, index, text_header)
+    lines = farmakokinetik.split("\n")
+    halftime_lines = []
+    for line in lines:
+        if "halveringstid" in line:
+            halftime_lines.append(line)
+
+    if halftime_lines:
+        res = "\n".join(halftime_lines)
+        if len(halftime_lines) > 1:
+            print("halftimes for {}, {}".format(atc, index))
+            print(res)
+            print("---------------")
     return res
 
 
@@ -209,9 +227,10 @@ async def get(
                 ]
                 for text_header in text_headers:
                     basis.append(get_text(soup, l_atc, index, text_header))
-                    if text_header == "Forsigtighedsregler":
-                        print(get_text(soup, l_atc, index, text_header))
+                    # if text_header == "Forsigtighedsregler":
+                    #     print(get_text(soup, l_atc, index, text_header))
                 basis.append(get_liver_info(soup, l_atc, index, "Nedsat leverfunktion"))
+                basis.append(get_halftime(soup, l_atc, index, "Farmakokinetik"))
                 # basis.append(get_registered_indications(soup, l_atc, index))
                 # get_liver_info(soup, l_atc, index)
                 # basis.append(get_contraindications(soup, l_atc, index))
@@ -262,7 +281,8 @@ async def main(data):
             "registered indication",
             "contraindications",
             "warnings",
-            "liver reduction",
+            "liver",
+            "halftime",
         ]
         write_to_csv_renal(
             final_res,
@@ -280,7 +300,7 @@ if __name__ == "__main__":
     # print(data[0])
     indices = ["4104", "5988", "5965", "9989"]
     data_used = [d for d in data if d[4] in indices]
-    # data_used = data
+    data_used = data
     # data_used = [d for d in data if d[4] == "5965"]
     # print(data_used)
     asyncio.run(main(data_used))

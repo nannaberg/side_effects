@@ -66,6 +66,7 @@ def write_to_csv_renal(input, cols, dst):
             contraindications = entry[3]
             warnings = entry[4]
             liver = entry[5]
+            halftime = entry[6]
 
             # print("RENAL INFO: ", renal_info)
             row = []
@@ -75,6 +76,7 @@ def write_to_csv_renal(input, cols, dst):
             row.append(contraindications)
             row.append(warnings)
             row.append(liver)
+            row.append(halftime)
             # print("Entry: ", entry)
             # renal_info_formated = "\n".join(renal_info)
             # print(renal_info)

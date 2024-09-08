@@ -26,7 +26,7 @@ else:
         # ex.close()
         # renal_info_col = "renal_info"
         # renal_info_col = "registered indication"
-        text_cols = ["registered indication", "contraindications", "warnings", "liver"]
+        text_cols = ["registered indication", "contraindications", "warnings", "liver", "halftime"]
         # print(repr(df[renal_info_col]))
         # for row in df[renal_info_col]:
         #     print("row: ", row)
