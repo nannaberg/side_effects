@@ -13,3 +13,4 @@ pdf2docx == 0.5.8
 selenium == 4.23.1
 XlsxWriter == 3.2.0
 html2text == 2024.2.26
+strip-markdown == 1.3 

@@ -127,13 +127,23 @@ def get_soup(update_local_table):
         return soup
 
 
-def get_drug_isoforms(drug, flockhar_dict):
+def get_drug_isoforms(drug_target, flockhar_dict):
     drug_isoform_dict = {}
     for header in flockhar_dict.keys():
         isoforms = []
         for isoform, drugs in flockhar_dict[header].items():
-            if drug in drugs:
-                isoforms.append(isoform)
+            for drug in drugs:
+                # print(drug_target, drug)
+                if drug_target == drug:
+                    # if drug_target != drug and drug_target + "e" != drug:
+                    #     print(drug_target, drug)
+                    isoforms.append(isoform)
+                elif drug_target + "e" == drug:
+                    isoforms.append(isoform)
+                elif drug_target in drug:
+                    print("ATTENTION CYP! {}, {}".format(drug_target, drug))
+            # if drug_target in drugs:
+            #     isoforms.append(isoform)
         drug_isoform_dict[header] = isoforms
     return drug_isoform_dict
 
@@ -142,6 +152,7 @@ def main():
     flockhart_dict = get_flockhart_dict()
     test(flockhart_dict)
     testdrug = "erythromycin"
+    testdrug = "domperidone"
     print("testing for drug:", testdrug)
     drug_isoforms_dict = get_drug_isoforms(testdrug, flockhart_dict)
     for header, isoforms in drug_isoforms_dict.items():
