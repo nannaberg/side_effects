@@ -1,0 +1,32 @@
+gfr limits: test hvad pandas df vil gøre ved html table og hvordan sådan en df ville blive lavet om til excel.
+
+
+
+docs as html: need to check if some text is included in subtitle divs, like eg 4.2 in Hypernix Comp (2care4), filmovertrukne tabletter 100 mg+12,5 mg.doc 
+
+
+
+
+
+obs!! about the bodywidth for html2text, for now i am using it only for docs and not for promed.
+
+
+
+
+check that max 12000 n_reqs still good?
+when finding indices for promed, check that no instances of several atc for one medicine messes things up?
+
+
+
+QUESTIONS:
+
+betyder dosisstørrelserne noget? skal de med som noget der adskiller de forskellige?
+
+
+
+
+
+TIMER:
+
+tirsdag: 7 timer
+onsdag: 3 timer
