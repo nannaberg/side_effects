@@ -14,9 +14,9 @@ def get_all_data():
 
 
 def get_all_data_with_indices():
-    df = pd.read_csv("drugs_with_indices.csv", keep_default_na=False)
+    df = pd.read_csv("final_drugs_with_indices.csv", keep_default_na=False)
     values = df.values.tolist()
-    return [x[2:] for x in values if x[1] == "X" and x[6]]
+    return [x for x in values if x[5] != "na"]
 
 
 def get_all_prioritized_data_with_or_without_indices():
@@ -55,6 +55,8 @@ def write_to_csv(formulations, cols, dst):
 
 
 def write_to_csv_renal(input, cols, dst):
+    # pharma_form_index = 2
+    pharma_form_key = "Pharmaceutical form"
     dst = dst + ".csv"
     with open(dst, "w", newline="") as f:
         writer = csv.writer(f)
@@ -63,45 +65,16 @@ def write_to_csv_renal(input, cols, dst):
             row = []
             for col in cols:
                 row.append(entry[col])
-            # print("ENTRY: ", entry)
-            # index = entry[0]
-            # atc = entry[1]
-            # # renal_info = entry[2]
-            # reg_ind_text = entry[2]
-            # contraindications = entry[3]
-            # warnings = entry[4]
-            # liver = entry[5]
-            # halftime = entry[6]
+            # pharma_form = list(cols)[pharma_form_index]
+            # pharmaceutical_forms = entry[pharma_form_key]
+            # for pharma in pharmaceutical_forms:
+            #     row = []
+            #     for col in cols:
+            #         if col == pharma_form_key:
+            #             row.append(pharma)
+            #         else:
+            #             row.append(entry[col])
 
-            # print("RENAL INFO: ", renal_info)
-
-            # for x in entry:
-            #     row.append(x)
-            # row.append(index)
-            # row.append(atc)
-            # row.append(reg_ind_text)
-            # row.append(contraindications)
-            # row.append(warnings)
-            # row.append(liver)
-            # row.append(halftime)
-            # print("Entry: ", entry)
-            # renal_info_formated = "\n".join(renal_info)
-            # print(renal_info)
-            # renal_info_formated = "\n".join(
-            #     [x if x != "\n" else "" for x in renal_info]
-            # )
-            # print(renal_info_formated)
-            # # print("ses: ", ses)
-            # row.append(renal_info_formated)
-            # print("row", row)
-            # print(row)
-            # thelist =
-            # for elm in entry:
-            #     print(elm)
-            #     thelist = ", ".join(elm)
-            #     print(thelist)
-            #     row.append(thelist)
-            # print("------------")
             writer.writerow(row)
 
 

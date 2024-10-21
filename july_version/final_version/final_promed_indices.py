@@ -191,8 +191,8 @@ if __name__ == "__main__":
     print(*data[:10], sep="\n")
 
     n_reqs = 12000
-    n_reqs = 4291
-    single = True
+    # n_reqs = 4291
+    single = False
 
     start = perf_counter()
     asyncio.run(main(n_reqs, single, data))
