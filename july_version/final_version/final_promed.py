@@ -297,23 +297,186 @@ def get_revision_date(soup, atc, index):
     return res[0]
 
 
-def get_pharmaceutical_form(soup, atc, index):
-    text_header = "Dispenseringsform"
-    markdown_text = get_text(soup, atc, index, text_header)
-    pattern = r"\*{2}(.*?)\*{2}"
-    res = re.findall(pattern, markdown_text)
+# def get_pharmaceutical_form(soup, atc, index):
+#     text_header = "Dispenseringsform"
+#     markdown_text = get_text(soup, atc, index, text_header)
+#     pattern = r"\*{2}(.*?)\*{2}"
+#     res = re.findall(pattern, markdown_text)
+#     return res
+
+
+def remove_annoying_commas(index, atc, markdown_text):
+    annoying_commas = ["** ,**", "** , **"]
+    altered_markdown = markdown_text
+    for comma in annoying_commas:
+        if comma in markdown_text:
+            altered_markdown = altered_markdown.replace(comma, ",")
+            print("ANNOYING COMMA WAS HERE: ", index, atc)
+    return altered_markdown
+
+
+def remove_annoying_punctuation_from_non_bold(index, atc, non_bold):
+    annoying_periods = [
+        "_**.**_",
+        "**.**",
+        "_._",
+    ]
+    match = False
+    res = []
+    for nb in non_bold:
+        new_nb = nb
+        for period in annoying_periods:
+            if period in new_nb:
+                new_nb = new_nb.replace(period, ".")
+                match = True
+                # print("ANNOYING PERIOD: ", atc, index)
+                # print("nb: \n", nb)
+                # print("new nb: \n", new_nb)
+                # print("--------------")
+        if new_nb[0] == ".":
+            match = True
+            # print(new_nb)
+            new_nb = new_nb[1:].strip()
+            # print(new_nb)
+        if new_nb[-1] == "*" and new_nb[-2:] != "**":
+            match = True
+            new_nb = new_nb[:-1].strip()
+        res.append(new_nb)
+        if match:
+            print(nb)
+            print(new_nb)
+            print("---------------")
     return res
+
+
+def remove_last_period(pharma_forms):
+    res = [f[:-1] if f[-1] == "." else f for f in pharma_forms]
+    res = [r for r in res if r]
+    return res
+
+
+def get_all_bold(atc, index, markdown_text, pattern, exclusion_list):
+    res = re.findall(pattern, markdown_text)
+    res = [r for r in res if r not in exclusion_list]
+    contains_colored_tablets = False
+    for r in res:
+        if "tabletter" in r:
+            # to check for the 21 lyserøde tabletter, 21 tabletter cases
+            if r[0].isdigit():
+                contains_colored_tablets = True
+                break
+    if contains_colored_tablets:
+        res = ["Tabletter"]
+    #     print("{}, {}".format(index, atc))
+    #     print(res)
+    #     print("-----------------------")
+    return res, contains_colored_tablets
+
+
+def make_bold_weird(sub):
+    res = "~".join(sub[2:-2])
+    res = "~" + res + "~"
+    return res
+
+
+def make_weird_bold(sub):
+    res = sub.replace("~", "")
+    res = "**" + res + "**"
+
+
+def get_all_non_bold(
+    atc, index, markdown_text, pattern, exclusion_list, contains_colored_tablets
+):
+    # for cases like 21 lyserøde tabletter, 7 hvide tabletter
+    if contains_colored_tablets:
+        res = [markdown_text]
+    else:
+        # goal: split the markdown by the pharma forms without including the pharma forms, and also avoid splitting by any of the bold forms of the exclusion list. The number of pharma forms and non-bold sections should match each other.
+        bold_exclusion_list = ["**" + x + "**" for x in exclusion_list]
+        weird_exclusion_list = [make_bold_weird(b) for b in bold_exclusion_list]
+        altered_markdown = markdown_text
+        # avoiding splitting by members of exclusion list by replacing them with "weird" versions (eg **Obs.** becomes ~O~b~s~.~) to easily find and return them to original **Obs** after the split.
+        for i in range(len(bold_exclusion_list)):
+            altered_markdown = altered_markdown.replace(
+                bold_exclusion_list[i], weird_exclusion_list[i]
+            )
+        split_text = [
+            part.strip()
+            for part in re.split(pattern, altered_markdown)
+            if part and not re.match(pattern, "**" + part + "**")
+        ]
+        # have to use this trick with ||| join to keep the non-bold in list form instead of one big string
+        joined_split_text = "|||".join(split_text)
+        for i in range(len(weird_exclusion_list)):
+            joined_split_text = joined_split_text.replace(
+                weird_exclusion_list[i], bold_exclusion_list[i]
+            )
+        res = joined_split_text.split("|||")
+
+    return res
+
+
+def get_pharmaceutical_form(index, atc, html):
+    sanitized_html = sanitizer.sanitize(html)
+    markdown_text = h.handle(sanitized_html)
+    pattern = r"\*{2}(.*?)\*{2}"
+    exclusion_list = [
+        "Obs.",
+        "dexamfetaminsulfat",
+        "dexamfetamin",
+        "3",
+        "Dosis nr. 1",
+        "Dosis nr. 2",
+        "1 brev A",
+        "1 brev B",
+        "1 brev",
+        "Bemærk:",
+        "rå opium",
+        "10 mg morphin",
+        ".",
+    ]
+    markdown_text = remove_annoying_commas(index, atc, markdown_text)
+    pharma_forms, contains_colored_tablets = get_all_bold(
+        atc, index, markdown_text, pattern, exclusion_list
+    )
+    pharma_forms = remove_last_period(pharma_forms)
+    pharma_non_bold = get_all_non_bold(
+        atc, index, markdown_text, pattern, exclusion_list, contains_colored_tablets
+    )
+
+    new_pharma_forms = []
+    if len(pharma_forms) != len(pharma_non_bold):
+        print("--------bold and nonbold dont fi--------------")
+        print(index, atc, pharma_forms)
+        print(pharma_non_bold)
+        print(markdown_text)
+        # print(*pharma_forms, sep="\n-")
+        print("-----------------------------")
+    else:
+        for bold, non_bold in zip(pharma_forms, pharma_non_bold):
+            if "filmovertruk" in non_bold:
+                # print("{}, {}, {}: {}".format(index, atc, bold, non_bold))
+                new_pharma_forms.append(bold + ", filmovertrukne")
+            elif "sukkerovertruk" in non_bold:
+                new_pharma_forms.append(bold + ", sukkerovertrukne")
+            elif (
+                "overtruk" in non_bold
+                and "filmovertruk" not in non_bold
+                and "sukkerovertruk" not in non_bold
+            ):
+                new_pharma_forms.append(bold + ", overtrukne")
+                # print("{}, {}, {}: {}".format(index, atc, bold, non_bold))
+            else:
+                new_pharma_forms.append(bold)
+    pharma_non_bold = remove_annoying_punctuation_from_non_bold(
+        index, atc, pharma_non_bold
+    )
+    pharma_forms = new_pharma_forms
+    return zip(pharma_forms, pharma_non_bold)
 
 
 def get_pharma_html(soup, atc, index):
     text_header = "Dispenseringsform"
-    # markdown_text = get_text(soup, atc, index, text_header)
-    # pattern = r"\*{2}(.*?)\*{2}"
-    # res = re.findall(pattern, markdown_text)
-    # return res
-
-    # first task: just figure out if any of the known pharmaforms can be found in the non-strong text segments
-
     header = get_header(soup, text_header)
     if header:
 
@@ -323,14 +486,6 @@ def get_pharma_html(soup, atc, index):
             )
 
         div = header.parent.find_next_sibling("div")
-
-    # all_ps = div.find_all("p")
-    # res = [p.text for p in all_ps]
-    # all_b_tags = div.find_all("b")
-    # if not all_b_tags:
-    #     print("{}, {}:".format(index, atc))
-    # print(*res, sep="\n--- ")
-    # print("--------------------------")
 
     return div
 
