@@ -14,9 +14,16 @@ def get_all_data():
 
 
 def get_all_data_with_indices():
-    df = pd.read_csv("final_drugs_with_indices.csv", keep_default_na=False)
+    df = pd.read_csv("final_drugs_with_indices2.csv", keep_default_na=False)
     values = df.values.tolist()
     return [x for x in values if x[5] != "na"]
+
+
+def get_data_not_on_promed():
+    df = pd.read_csv("final_drugs_with_indices2.csv", keep_default_na=False)
+    values = df.values.tolist()
+    to_skip = ["A01AB09", "A06AD15", "M02AA07", "A10AC04", "A10AE54", "A10BD10"]
+    return [[x[1], x[3]]  for x in values if x[3] not in to_skip and x[5] == "na"]
 
 
 def get_all_prioritized_data_with_or_without_indices():
