@@ -10,6 +10,7 @@ sanitizer = Sanitizer()  # default configuration
 H = html2text.HTML2Text()
 H.ignore_links = True
 H.body_width = 0
+H.single_line_break = True
 
 # Permanently changes the pandas settings
 pd.set_option("display.max_rows", None)
@@ -115,10 +116,18 @@ indices = [10609]
 indices = [4323]
 indices = [1132]
 indices = [753]
+indices = [7144]
+indices = [8306]
+indices = [4641]
+indices = [957]
+indices = [2025]
+indices = [3540]
+indices = [521]
+indices = [4651]
 # indices = [6567]
 # indices = [4323]
 # indices = [1237]
-data = [h for h in data if h[0] in indices]
+# data = [h for h in data if h[0] in indices]
 has_nested_tables = []
 has_regular_tables = []
 has_no_tables = []
@@ -133,9 +142,6 @@ for d in data:
 
     soup = BeautifulSoup(html, "lxml")
     tables = soup.find_all("table")
-    # if len(tables) > 1:
-    #     print(index, atc, len(tables))
-    # print(soup)
 
     outer_tables = []
     first_table = soup.find("table")
@@ -149,16 +155,28 @@ for d in data:
             has_regular_tables.append(index)
             print_this = False
             table_res = ""
-            for table in outer_tables:
-                # print(index, atc)
+            table_count = len(outer_tables)
+            for i, table in enumerate(outer_tables):
+                table_sibling = table.find_next_sibling()
+                if table_sibling:
+                    if table_sibling.name != "table":
+                        last = i == table_count - 1
+                        if not last:
+                            print(
+                                "TAG: ",
+                                index,
+                                atc,
+                                table_sibling.name,
+                                last,
+                                i,
+                                table_count,
+                            )
                 general_header_soup = table.find("tr", class_="Header")
                 general_header_text = get_sanitized_html_markdown_text(
                     general_header_soup
                 )
                 headers_soup = general_header_soup.find_next_sibling("tr")
                 headers = [header.get_text() for header in headers_soup.find_all("th")]
-                # print(general_header_text)
-                # print(headers)
 
                 content_soup = headers_soup.find_next_siblings("tr")
                 rows = [
@@ -166,8 +184,9 @@ for d in data:
                     for row in content_soup
                 ]
                 res = general_header_text
-                # print(index, atc)
-                # to_unmerge = []
+
+                if "Advarsel" in headers and headers[-1] != "Advarsel":
+                    print("ADVARSEL PROBLEM", index, atc, headers)
 
                 skip_cells = {}
                 modified_rows = []
@@ -175,220 +194,69 @@ for d in data:
                     new_row = []
                     for j, col in enumerate(row):
 
-                        # if (i, j) in skip_cells.keys():
-                        # print("in skipcells: ", i, j, skip_cells[i, j])
-                        # new_row.append(" " * len(skip_cells[i, j]))
-
                         col_text = get_sanitized_html_markdown_text(col).rstrip("\n")
                         if not col_text:
                             col_text = "na"
                         new_row.append(col_text)
-                        # print(i, j, col_text)
 
                         rowspan = col.get("rowspan")
                         if rowspan:
-                            print_this = True
                             rowspan = int(rowspan)
 
                             for r in range(1, rowspan):
                                 skip_cells[i + r, j] = col_text
                     modified_rows.append(new_row)
                 new_modified_rows = []
-                print(skip_cells.keys())
                 for k, row in enumerate(modified_rows):
                     keys_to_use = []
-                    # print(row)
                     new_modified_row = row.copy()
                     for i, j in skip_cells.keys():
                         if k == i:
                             new_text = skip_cells[i, j]
-                            # print(i, j, new_text)
                             new_modified_row.insert(j, new_text)
-                    print(k, new_modified_row)
                     new_modified_rows.append(new_modified_row)
-                    # new_row = []
-                    # rowspan = 0
-                    # for j, col in enumerate(row):
 
-                    #     if (i, j) in skip_cells.keys():
-                    #         # new_row.append(" " * len(skip_cells[i, j]))
-                    #         new_row.append(skip_cells[i, j])
-
-                    #     col_text = get_sanitized_html_markdown_text(col).rstrip("\n")
-                    #     if not col_text:
-                    #         col_text = "na"
-                    #     new_row.append(col_text)
-                    #     rowspan = col.get("rowspan")
-                    #     if rowspan:
-                    #         print_this = True
-                    #         rowspan = int(rowspan)
-                    #         print("ROWSPAN: ", rowspan)
-                    #         for r in range(1, rowspan):
-                    #             # goal:
-                    #             # skip_cells.append((i + len(modified_rows) + r, j))
-                    #             skip_index = (i + len(modified_rows) + r, j)
-                    #             print(skip_index)
-                    #             skip_cells[i + len(modified_rows) + r, j] = col_text
-                    #             # print(skip_cells)
-                    # modified_rows.append(new_row)
-
-                # if print_this:
-                #     print(index, atc)
-                #     for row in modified_rows:
-                #         for col in row:
-                #             print(col)
-                #         print("\n")
-
-                for row in new_modified_rows:
+                indent = 4 * " "
+                for k, row in enumerate(new_modified_rows):
+                    res_line = indent
+                    if k > 0:
+                        res_line += "\n" + indent
                     for j, col in enumerate(row):
                         header = headers[j]
                         if j > 0:
-                            res += " | "
-                        # col_text = headers[j] + ": " + col
-                        if col.isspace():
-                            res += " " * len(header + ": ") + col
+                            res_line += "\n" + indent
+                        if header == "Advarsel" and col.count("\n") >= 1:
+
+                            print_this = True
+
+                            col_text = 2 * indent + col.replace("\n", "\n" + 2 * indent)
+                            res_line += header + ":\n" + col_text.rstrip("\n")
                         else:
-                            if col.count("\n") >= 2:
-                                # print(repr(col))
-                                skip_space = len(res.split("\n")[0]) + len(
-                                    header + ": "
-                                )
-                                col_text = col.replace("\n", "\n" + " " * skip_space)
-                                res += header + ": " + col_text
-                            else:
-                                res += header + ": " + col
-                    res += "\n"
+                            res_line += header + ": " + col
+                    res += res_line + "\n"
 
                 table_res += res + "\n\n"
             if print_this:
                 print(index, atc)
                 print(table_res)
                 print("------------------")
-            # for table in outer_tables:
-            #     # print(index, atc)
-            #     general_header_soup = table.find("tr", class_="Header")
-            #     general_header_text = get_sanitized_html_markdown_text(
-            #         general_header_soup
-            #     )
-            #     headers_soup = general_header_soup.find_next_sibling("tr")
-            #     headers = [header.get_text() for header in headers_soup.find_all("th")]
-            #     # print(general_header_text)
-            #     # print(headers)
 
-            #     content_soup = headers_soup.find_next_siblings("tr")
-            #     rows = [
-            #         [cell for cell in row.find_all(["td", "th"])]
-            #         for row in content_soup
-            #     ]
-            #     res = general_header_text
-            #     # print(index, atc)
-            #     # to_unmerge = []
-
-            #     skip_cells = {}
-            #     modified_rows = []
-            #     for i, row in enumerate(rows):
-            #         new_row = []
-            #         rowspan = 0
-            #         for j, col in enumerate(row):
-
-            #             if (i, j) in skip_cells.keys():
-            #                 # new_row.append(" " * len(skip_cells[i, j]))
-            #                 new_row.append(skip_cells[i, j])
-
-            #             col_text = get_sanitized_html_markdown_text(col).rstrip("\n")
-            #             if not col_text:
-            #                 col_text = "na"
-            #             new_row.append(col_text)
-            #             rowspan = col.get("rowspan")
-            #             if rowspan:
-            #                 print_this = True
-            #                 rowspan = int(rowspan)
-            #                 print("ROWSPAN: ", rowspan)
-            #                 for r in range(1, rowspan):
-            #                     # goal:
-            #                     # skip_cells.append((i + len(modified_rows) + r, j))
-            #                     skip_index = (i + len(modified_rows) + r, j)
-            #                     print(skip_index)
-            #                     skip_cells[i + len(modified_rows) + r, j] = col_text
-            #                     # print(skip_cells)
-            #         modified_rows.append(new_row)
-
-            #     if print_this:
-            #         print(index, atc)
-            #         for row in modified_rows:
-            #             for col in row:
-            #                 print(col)
-            #             print("\n")
-
-            #     for row in modified_rows:
-            #         for j, col in enumerate(row):
-            #             header = headers[j]
-            #             if j > 0:
-            #                 res += " | "
-            #             # col_text = headers[j] + ": " + col
-            #             if col.isspace():
-            #                 res += " " * len(header + ": ") + col
-            #             else:
-            #                 res += header + ": " + col
-            #         res += "\n"
-
-            #     table_res += res + "\n\n"
-            # if print_this:
-            #     print(index, atc)
-            #     print(table_res)
-            #     print("-------------------------")
-            # print(" | ".join(row))
-            # for row in
-            # res += "\n"
-            # print(res)
-            # df = pd.read_html(StringIO(str(table)))[0]
-            # level0_headers = list(set(df.columns.get_level_values(0).tolist()))
-            # overarching_header = level0_headers[0]
-            # df = df.droplevel(0, axis=1)
-            # headers = df.columns
-
-            # # print(headers)
-
-            # # headers = df.columns.get_level_values(1)
-            # # print(overarching_header)
-            # # print(headers)
-            # print(index, atc)
-            # # print(df)
-            # res = overarching_header + "\n"
-            # df = df.fillna("na")
-            # for i in df.index:
-            #     first = True
-            #     for col in headers:
-            #         if not first:
-            #             res += " | "
-            #         first = False
-            #         val = df[col][i]
-            #         res += col + ": " + val
-
-            #     res += "\n"
-            # print(res)
-            # for i, row in df.iterrows():
-            #     print(row)
-            #     for col in headers:
-            #         print(row[col])
-            # print(df[0].info())
-            # if len(df) > 1:
-            #     print("NOOOOOOOOOOOOO")
-            # rows = df[0].shape[0]
-            # if rows > 1:
-            #     print(index, atc)
-            #     print(df[0])
-            #     text_version = df[0].to_string(index=False)
-            #     print(text_version)
-            #     print(repr(text_version))
-            #     # markdown_tabel = get_sanitized_html_markdown_text(table)
-            #     # print(markdown_tabel)
-            #     print("\n")
             # print("--------------------------NEXT---------------------------------")
     else:
         has_no_tables.append(index)
         markdown_text = get_sanitized_html_markdown_text(soup)
 
+    for table in soup.find_all("table"):
+        table.extract()
+    text_without_tables = get_sanitized_html_markdown_text(soup).rstrip("\n")
+    if (
+        text_without_tables
+        and index not in has_no_tables
+        and index not in has_nested_tables
+    ):
+        print(text_without_tables)
+    # print(index, atc, repr(text_without_tables))
+    # print("---------------------------------------------")
     # print(index, atc)
     # print(markdown_text)
     # print("------------------------\n")
