@@ -4,7 +4,6 @@ import sys
 
 
 n = len(sys.argv)
-# print(n)
 if n <= 1:
     print("no argument was given")
 else:
@@ -13,40 +12,16 @@ else:
     if not csv_to_convert.endswith(".csv"):
         print("argument should be a .csv file")
     else:
-        # # reading the csv file
+        # reading the csv file
         df = pd.read_csv(csv_to_convert)
-        # # creating an output excel file
+        # creating an output excel file
         ex_name = csv_to_convert[:-4] + ".xlsx"
-        # print(ex_name)
-        # ex = pd.ExcelWriter(ex_name)
-        # # converting the csv file to an excel file
-        # csv.to_excel(ex, index=False)
-
-        # # saving the excel file
-        # ex.close()
-        # renal_info_col = "renal_info"
-        # renal_info_col = "registered indication"
-        text_cols = [
-            "Registered indication",
-            "Contraindications",
-            "Warnings and precautions",
-            "Dosereduction liver",
-            "Halftime",
-        ]
-        # text_cols = ["halftime"]
-        # text_cols = []
-        # print(repr(df[renal_info_col]))
-        # for row in df[renal_info_col]:
-        #     print("row: ", row)
-        # df[renal_info_col] = df[renal_info_col].str.join("\n")
-        # print(repr(df[renal_info_col]))
 
         with pd.ExcelWriter(
             ex_name,
             engine="xlsxwriter",
         ) as writer:
             df.to_excel(writer, index=False)
-            # print(repr(df["renal_info"]))
             workbook = writer.book
             worksheet = writer.sheets["Sheet1"]
             header_format = workbook.add_format(
@@ -58,9 +33,25 @@ else:
 
             twrap = workbook.add_format({"text_wrap": True})
 
+            text_cols = [
+                "Dosage",
+                "Registered indication",
+                "Contraindications",
+                "Warnings and precautions",
+                "Dosereduction liver",
+                "Halftime",
+                "eGFR",
+            ]
+
             for c in text_cols:
                 idx_location = df.columns.get_loc(c)
                 worksheet.set_column(idx_location, idx_location, 60, twrap)
+
+            other_cols = ["Active substance", "Revision date", "Pharmaceutical form"]
+
+            for c in other_cols:
+                idx_location = df.columns.get_loc(c)
+                worksheet.set_column(idx_location, idx_location, 30, twrap)
             print("all OK!")
 
             # worksheet.set_row(0, 30, twrap)
