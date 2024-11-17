@@ -1,23 +1,12 @@
-from get_drug_list_info import (
-    get_all_data_with_indices,
-    write_to_csv,
-    write_to_csv_renal,
-)
 from bs4 import BeautifulSoup
 import asyncio
 import aiohttp
 from time import perf_counter
 import re
-from io import StringIO
-
-# import requests
-import lxml.html as lh
-import lxml.etree as etree
 import lxml
 import html2text
 from html_sanitizer import Sanitizer
 from collections import Counter
-from flockhart.flockhart import get_flockhart_dict, get_drug_isoforms
 import pandas as pd
 from datetime import datetime
 
@@ -30,216 +19,29 @@ pd.set_option("display.max_colwidth", None)
 H = html2text.HTML2Text()
 H.ignore_links = True
 H.body_width = 0
+H.single_line_break = True
 
 sanitizer = Sanitizer()
 
 
-def sanitize_html_soup(html_soup):
-    return sanitizer.sanitize(str(html_soup))
+def get_all_data_with_indices():
+    df = pd.read_csv("final_drugs_with_indices.csv", keep_default_na=False)
+    values = df.values.tolist()
+    return [x for x in values if x[5] != "na"]
 
 
-# Function to remove tags
-def remove_tags(soup):
-
-    for data in soup(["style", "script"]):
-        # Remove tags
-        data.decompose()
-
-    # return data by retrieving the tag content
-    return " ".join(soup.stripped_strings)
-
-
-# # Print the extracted data
-# print(remove_tags(page.content))
+def get_data_not_on_promed():
+    df = pd.read_csv("final_drugs_with_indices.csv", keep_default_na=False)
+    values = df.values.tolist()
+    to_skip = ["A01AB09", "A06AD15", "M02AA07", "A10AC04", "A10AE54", "A10BD10"]
+    return [[x[1], x[3]] for x in values if x[3] not in to_skip and x[5] == "na"]
 
 
 def get_sanitized_html_markdown_text(soup):
-    # print(soup.prettify())
     sanitized_html = sanitizer.sanitize(str(soup))
 
     markdown_text = H.handle(sanitized_html)
     return markdown_text
-
-
-def get_dose_reduction_info(soup, atc, index):
-    header = soup.find(lambda tag: tag.name == "h3" and "Doseringsforslag" in tag.text)
-    dose_div = header.parent.find_next_sibling("div")
-
-    pure_text = remove_tags(dose_div)
-    if "skal nedsættes" in pure_text:
-        print("{}, {}:\n {}\n".format(index, atc, pure_text))
-    else:
-        pass
-        # print("{}, {}:\n NO INFO".format(index, atc))
-
-
-# def get_liver_info(soup, atc, index):
-#     header = soup.find(
-#         lambda tag: tag.name == "h3" and "Nedsat leverfunktion" in tag.text
-#     )
-#     if header:
-#         liver_div = header.parent.find_next_sibling("div")
-
-#         pure_text = remove_tags(liver_div)
-#         if "let" in pure_text:
-#             print("{}, {}:\n {}\n".format(index, atc, pure_text))
-#     else:
-#         # pass
-#         print("{}, {}, NO LIVER DOSE REDUCTION".format(index, atc))
-
-
-def check_kidney_section_structure(kidney_div, atc, index):
-    table = kidney_div.find("table")
-    ul = kidney_div.find("ul")
-    if table:
-        # print("{}, {} HAS KIDNEY TABLE".format(index, atc))
-        return "table"
-    elif ul:
-        # print("{}, {} HAS UL/LIST".format(index, atc))
-        return "ul/list"
-    else:
-        # print("{}, {}".format(index, atc))
-        gfr_sections = kidney_div.find_all("p", class_="glob-padTop20")
-
-        calc_tag = kidney_div.find("div", class_="glob-padbtm20")
-        # calc_tag = kidney_div.find_all("div", class_="glob-padbtm20")
-        # if len(calc_tag) > 1:
-        #     print("{}, {}: MORE THAN ONE glob-padbtm20 div".format(index, atc))
-
-        if calc_tag:
-            calc_siblings = calc_tag.findNextSiblings()
-            # if calc_siblings:
-            #     pass
-            # print("{}, {}: MORE SIBLNGS".format(index, atc))
-            for calc_sib in calc_siblings:
-                if calc_sib.has_attr("class"):
-                    if calc_sib["class"][0] != "referencer":
-                        print("calc sib with class that is NOT referencer")
-                        print(calc_sib.prettify())
-                else:
-                    print("{}, {}: MORE INFO".format(index, atc))
-                    print(calc_sib.prettify())
-                print("--------------------")
-
-        else:
-            pass
-            # print("{}, {}: NO calc TAG".format(index, atc))
-            # print("!!!there is more after calc!!!")
-        # else:
-        #     print("{}, {} NO calc TAG".format(index, atc))
-
-        # print(calc_tag.text)
-        # calc_ps = calc_tag
-
-
-# def parse_nested_tables(html_content):
-#     soup = BeautifulSoup(html_content, "html.parser")
-#     main_table = soup.find("table")
-
-#     df = pd.DataFrame(columns=["id", "col1", "col2", "col3"])
-
-#     for row in main_table.find_all("tr"):
-#         df_row = {}
-#         df_row["id"] = row.get("id")
-
-#         for i, cell in enumerate(row.find_all("td")):
-#             if cell.find("table"):
-#                 nested_table_html = str(cell.table)
-#                 nested_df = pd.read_html(nested_table_html)[0]
-#                 df_row[f"col{i+1}"] = nested_df
-#             else:
-#                 df_row[f"col{i+1}"] = cell.text.strip()
-
-#         df = df.append(df_row, ignore_index=True)
-
-#     return df
-
-
-def get_renal_info(soup, atc, index):
-
-    # res = []
-    res = "na"
-    no_tables = 0
-    bool_inner_tables = False
-    renal_header = soup.find(
-        lambda tag: tag.name == "h3" and "Nedsat nyrefunktion" in tag.text
-    )
-    if renal_header:
-        renal_div = renal_header.parent.find_next_sibling("div")
-        all_tables = renal_div.find_all("table")
-        # print(len(all_tables))
-        # outer_tables = []
-        first_table = renal_div.find("table")
-        if first_table:
-            outer_tables = [first_table] + first_table.find_next_siblings("table")
-            # print(len(outer_tables))
-            # print(index, atc, len(all_tables), len(outer_tables))
-            if len(outer_tables) != len(all_tables):
-                res = "Nested table - to be done manually"
-            else:
-                res = ""
-                for table in outer_tables:
-                    df = pd.read_html(StringIO(str(table)))
-                    if len(df) != 1:
-                        raise Exception(
-                            "Discrepancy regarding number of renal tables: {atc_code}, {index}"
-                        )
-                    text_version = df[0].to_string(index=False)
-                    res += text_version + "\n"
-        else:
-            res = get_sanitized_html_markdown_text(renal_div)
-        # res = renal_div
-
-    return res
-    # tables = renal_div.select("div > table")
-    # rows = tables[0].find_all("tr")
-    # for row in rows:
-    #     markdown = H.handle(sanitize_html_soup(row))
-    # print(markdown.strip())
-    # print("-------------")
-    # print(index, atc, len(tables))
-    # nested_tables = []
-    # for table in tables:
-    #     nested_tables.extend(table.find_all("table"))
-    # if nested_tables:
-    #     print("{}, {}, nested tables: {}".format(index, atc, len(nested_tables)))
-    # for table in tables:
-    #     print(table.prettify())
-    #     print("\n\n")
-    # table_1 = renal_div.find("div > table")
-    # other_tables = table_1.find_next_siblings("table")
-    # if table_1:
-    #     print({index, atc, len(other_tables)})
-    # else:
-    #     print("{}, {}, NO TABLES".format(index, atc))
-    # print(renal_div.prettify())
-    # df = pd.read_html(str(renal_div))
-    # print(df[0])
-    # br()
-    # print(df[1])
-    # print(markdown_table)
-    # inner_tables = []
-
-    # tables = renal_div.findAll("table")
-    # no_tables = len(tables)
-
-    # if no_tables == 2:
-    #     for table in tables:
-    #         if table.findAll("table"):
-    #             bool_inner_tables = True
-    # if not tables:
-    #     print("{}, {}: RENAL BUT NO TABLE".format(index, atc))
-    # for table in tables:
-    #     all_inner_tables = table.findAll("table")
-    #     if all_inner_tables:
-    #         bool_inner_tables = True
-    #         inner_tables.append(len(all_inner_tables))
-    #     else:
-    #         inner_tables.append(0)
-    # # print("{}, {}: table length: {}".format(index, atc, len(tables)))
-    # res = inner_tables
-
-    # return (no_tables, bool_inner_tables, res)
 
 
 def get_header(soup, text_header):
@@ -247,7 +49,6 @@ def get_header(soup, text_header):
 
 
 def get_text(soup, atc_code, index, text_header):
-    # header = soup.find(lambda tag: tag.name == "h3" and text_header in tag.text)
     header = get_header(soup, text_header)
 
     res = "na"
@@ -259,15 +60,138 @@ def get_text(soup, atc_code, index, text_header):
             )
 
         div = header.parent.find_next_sibling("div")
-        res = H.handle(sanitize_html_soup(div))
+        res = get_sanitized_html_markdown_text(div)
     return res
+
+
+def check_no_text_between_tables(outer_tables, index, atc):
+    table_count = len(outer_tables)
+    for i, table in enumerate(outer_tables):
+        table_sibling = table.find_next_sibling()
+        if table_sibling:
+            if table_sibling.name != "table":
+                is_last_table = i == table_count - 1
+                if not is_last_table:
+                    raise Exception(
+                        "Text between non-nested tables in GFR section, modify script to account for this: {}, {}".format(
+                            index, atc
+                        )
+                    )
+
+
+def get_renal_info(soup, index, atc):
+    final_res = "na"
+    text_header = "Nedsat nyrefunktion"
+    header = get_header(soup, text_header)
+    if not header:
+        return final_res
+
+    div = header.parent.find_next_sibling("div")
+
+    # has_nested_tables = []
+    # has_regular_tables = []
+    # has_no_tables = []
+    tables = div.find_all("table")
+
+    outer_tables = []
+    first_table = div.find("table")
+    if first_table:
+        # print(index, atc)
+        outer_tables = [first_table] + first_table.find_next_siblings("table")
+        if len(outer_tables) != len(tables):
+            # has_nested_tables.append(index)
+            final_res = "Nested table - to be done manually"
+        else:
+            # has_regular_tables.append(index)
+            # print_this = False
+            final_res = ""
+            check_no_text_between_tables(outer_tables, index, atc)
+            for table in outer_tables:
+
+                all_headers = table.find_all("tr", class_="Header")
+                if len(all_headers) != 2:
+                    raise Exception(
+                        'For a table in "{}", the number of header rows != 2, modify script to account for this, index: {}, atc: {}'.format(
+                            text_header, index, atc
+                        )
+                    )
+                # general_header_soup = table.find("tr", class_="Header")
+                general_header_text = get_sanitized_html_markdown_text(all_headers[0])
+                headers_soup = all_headers[1]
+                # headers_soup = general_header_soup.find_next_sibling("tr")
+                headers = [header.get_text() for header in headers_soup.find_all("th")]
+
+                content_soup = headers_soup.find_next_siblings("tr")
+                rows = [
+                    [cell for cell in row.find_all(["td", "th"])]
+                    for row in content_soup
+                ]
+                res = general_header_text
+
+                skip_cells = {}
+                modified_rows = []
+                for i, row in enumerate(rows):
+                    new_row = []
+                    for j, col in enumerate(row):
+
+                        col_text = get_sanitized_html_markdown_text(col).rstrip("\n")
+                        if not col_text:
+                            col_text = "na"
+                        new_row.append(col_text)
+
+                        rowspan = col.get("rowspan")
+                        if rowspan:
+                            rowspan = int(rowspan)
+
+                            for r in range(1, rowspan):
+                                skip_cells[i + r, j] = col_text
+                    modified_rows.append(new_row)
+                new_modified_rows = []
+                for k, row in enumerate(modified_rows):
+                    new_modified_row = row.copy()
+                    for i, j in skip_cells.keys():
+                        if k == i:
+                            new_text = skip_cells[i, j]
+                            new_modified_row.insert(j, new_text)
+                    new_modified_rows.append(new_modified_row)
+
+                indent = 4 * " "
+                for k, row in enumerate(new_modified_rows):
+                    res_line = indent
+                    if k > 0:
+                        res_line += "\n" + indent
+                    for j, col in enumerate(row):
+                        header = headers[j]
+                        if j > 0:
+                            res_line += "\n" + indent
+                        if header == "Advarsel" and col.count("\n") >= 1:
+                            col_text = 2 * indent + col.replace("\n", "\n" + 2 * indent)
+                            res_line += header + ":\n" + col_text.rstrip("\n")
+                        else:
+                            res_line += header + ": " + col
+                    res += res_line + "\n"
+
+                final_res += res + "\n\n"
+
+            for table in tables:
+                table.extract()
+            text_without_tables = get_sanitized_html_markdown_text(div).rstrip("\n")
+            final_res += text_without_tables
+            # print("FINAL RES")
+            # print(final_res, index, atc)
+
+    else:
+        # has_no_tables.append(index)
+        final_res = get_sanitized_html_markdown_text(div)
+    return final_res
 
 
 def get_liver_info(soup, atc_code, index, text_header):
 
-    header = soup.find(lambda tag: tag.name == "h3" and text_header in tag.text)
+    # header = soup.find(lambda tag: tag.name == "h3" and text_header in tag.text)
+    header = get_header(soup, text_header)
 
-    res = "Nej"
+    res = "na"
     if header:
         if not header.text.strip() == text_header:
             raise Exception(
@@ -277,7 +201,7 @@ def get_liver_info(soup, atc_code, index, text_header):
             )
 
         div = header.parent.find_next_sibling("div")
-        res = H.handle(sanitize_html_soup(div))
+        res = get_sanitized_html_markdown_text(div)
     return res
 
 
@@ -293,19 +217,8 @@ def get_halftime(soup, atc, index, text_header):
 
     if halftime_lines:
         res = "\n".join(halftime_lines)
-        # if len(halftime_lines) > 1:
-        #     print("MORE THAN TWO LINES, halftimes for {}, {}".format(atc, index))
-        #     print(farmakokinetik)
-        #     print("---------------\n")
-    # else:
-    #     print("NO LINES for {}, {}".format(atc, index))
-    #     print(farmakokinetik)
-    #     print("--------------------\n")
+    # print("{}, {} \n{}".format(index, atc, res))
     return res
-
-
-def br():
-    print("\n")
 
 
 def get_revision_date(soup, atc, index):
@@ -314,30 +227,29 @@ def get_revision_date(soup, atc, index):
     markdown_text = H.handle(str(header.parent))
     pattern = r"\d{2}\.\d{2}\.\d{4}"
     res = re.findall(pattern, markdown_text)
-    if len(res) == 0:
-        print("NO DATES: ", atc, index)
-    if len(res) > 1:
-        print("MORE THAN ONE DATE: ", atc, index)
-    date = datetime.strptime(res[0], "%d.%m.%Y")
-    # print(res[0], date)
+    if len(res) != 1:
+        raise Exception(
+            "Ambiguity regarding {}: {}, {}".format(text_header, atc, index)
+        )
+    date = datetime.strptime(res[0], "%d.%m.%Y").date()
     return date
 
 
-# def get_pharmaceutical_form(soup, atc, index):
-#     text_header = "Dispenseringsform"
-#     markdown_text = get_text(soup, atc, index, text_header)
-#     pattern = r"\*{2}(.*?)\*{2}"
-#     res = re.findall(pattern, markdown_text)
-#     return res
-
-
-def remove_annoying_commas(index, atc, markdown_text):
-    annoying_commas = ["** ,**", "** , **"]
+def remove_commas_between_bold(index, atc, markdown_text):
+    # annoying_commas = ["** ,**", "** , **", "**, **"]
+    # altered_markdown = markdown_text
+    # for comma in annoying_commas:
+    #     if comma in markdown_text:
+    #         altered_markdown = altered_markdown.replace(comma, ",")
+    #         print("ANNOYING COMMA WAS HERE: ", index, atc)
+    # return altered_markdown
+    comma_pattern = r"\*\*\s*,\s*\*\*"
     altered_markdown = markdown_text
-    for comma in annoying_commas:
-        if comma in markdown_text:
-            altered_markdown = altered_markdown.replace(comma, ",")
-            print("ANNOYING COMMA WAS HERE: ", index, atc)
+    if re.search(comma_pattern, markdown_text):
+        print("BOLD COMMA WAS HERE: ", index, atc)
+        print(markdown_text)
+        print("-----------------------")
+        altered_markdown = re.sub(comma_pattern, ",", markdown_text)
     return altered_markdown
 
 
@@ -369,10 +281,15 @@ def remove_annoying_punctuation_from_non_bold(index, atc, non_bold):
             new_nb = new_nb[:-1].strip()
         res.append(new_nb)
         # if match:
-        # print(nb)
-        # print(new_nb)
-        # print("---------------")
+        #     print(nb)
+        #     print(new_nb)
+        #     print("---------------")
     return res
+
+
+def lower_non_copyright_pharma_forms(pharma_forms):
+    copyright = "®"
+    return [r.lower() if copyright not in r else r for r in pharma_forms]
 
 
 def remove_last_period(pharma_forms):
@@ -384,6 +301,7 @@ def remove_last_period(pharma_forms):
 def get_all_bold(atc, index, markdown_text, pattern, exclusion_list):
     res = re.findall(pattern, markdown_text)
     res = [r for r in res if r not in exclusion_list]
+    # res = [r.lower() for r in res if r not in exclusion_list]
     contains_colored_tablets = False
     for r in res:
         if "tabletter" in r:
@@ -445,7 +363,9 @@ def get_all_non_bold(
 def get_pharmaceutical_form(soup, atc, index):
     text_header = "Dispenseringsform"
     markdown_text = get_text(soup, atc, index, text_header)
-    pattern = r"\*{2}(.*?)\*{2}"
+    pattern = r"\*{2}(.*?)\*{2}"  # to detect markdown bold pattern, eg **Tabletter**
+
+    # strings that appear in markdown as bold that don't count as pharma forms
     exclusion_list = [
         "Obs.",
         "dexamfetaminsulfat",
@@ -461,37 +381,33 @@ def get_pharmaceutical_form(soup, atc, index):
         "10 mg morphin",
         ".",
     ]
-    markdown_text = remove_annoying_commas(index, atc, markdown_text)
+    markdown_text = remove_commas_between_bold(index, atc, markdown_text)
     pharma_forms, contains_colored_tablets = get_all_bold(
         atc, index, markdown_text, pattern, exclusion_list
     )
-    pharma_forms = remove_last_period(pharma_forms)
+    pharma_forms = lower_non_copyright_pharma_forms(remove_last_period(pharma_forms))
+
+    # getting the matching non-bold text for each bold pharmaceutical form to be able to later to determine if film- eller sukkerovertrukne
     pharma_non_bold = get_all_non_bold(
         atc, index, markdown_text, pattern, exclusion_list, contains_colored_tablets
     )
 
+    # using the matching bold and non_bold text to determine if the pharma form is additionally filmovertrukken, sukkerovertrukken, or overtrukken.
     new_pharma_forms = []
     if len(pharma_forms) != len(pharma_non_bold):
-        print(
-            "--------bold and nonbold dont fit: {}, {}--------------".format(index, atc)
+        raise Exception(
+            "For {}: the list of bold text (pharmaceutical forms) and the list of non-bold (pharmaceutical form dosage) are not of equal length, ProMed must have been updated, update script to accomodate this: {}, {}".format(
+                text_header, index, atc
+            )
         )
-        print(index, atc, pharma_forms)
-        print(pharma_non_bold)
-        # print(markdown_text)
-        # # print(*pharma_forms, sep="\n-")
-        # print("-----------------------------")
     else:
         for bold, non_bold in zip(pharma_forms, pharma_non_bold):
-            if "filmovertruk" in non_bold:
+            if any(s in non_bold for s in ["filmovertruk", "flmovertruk"]):
                 # print("{}, {}, {}: {}".format(index, atc, bold, non_bold))
                 new_pharma_forms.append(bold + ", filmovertrukne")
             elif "sukkerovertruk" in non_bold:
                 new_pharma_forms.append(bold + ", sukkerovertrukne")
-            elif (
-                "overtruk" in non_bold
-                and "filmovertruk" not in non_bold
-                and "sukkerovertruk" not in non_bold
-            ):
+            elif "overtruk" in non_bold:
                 new_pharma_forms.append(bold + ", overtrukne")
                 # print("{}, {}, {}: {}".format(index, atc, bold, non_bold))
             else:
@@ -517,96 +433,10 @@ def get_pharma_html(soup, atc, index):
 
     return div
 
-    # all_li_tags = div.find_all("li")
-    # if all_li_tags:
-    #     print("{}, {}:".format(index, atc))
-    #     # print(len(all_sibling_b_tags))
-    #     print(*res, sep="\n--- ")
-    #     print("--------------------------")
-
-    # all_sibling_b_tags = []
-
-    # for b_tag in all_bs:
-    #     sibling_b_tags = []
-    #     for sibling in b_tag.find_all_next("b"):
-    #         all_sibling_b_tags.append(sibling)
-    #     # all_sibling_b_tags.append(sibling_b_tags)
-    # if all_sibling_b_tags:
-    #     print("{}, {}:".format(index, atc))
-    #     print(len(all_sibling_b_tags))
-    #     print(*res, sep="\n--- ")
-    #     print("--------------------------")
-    # if len(all_bs) < 1:
-    #     print("{}, {}: NO B's!!!".format(index, atc))
-
-    # if len(all_ps) != len(all_bs):
-    #     only_dot = soup.find_all(lambda tag: tag.name == "b" and tag.text == ".")
-    #     print("{}, {}:".format(index, atc))
-    #     print(*res, sep="\n--- ")
-    #     if only_dot:
-    #         print("<b> with ONLY DOT")
-    #     print("--------------------------")
-
-    # return res
-
-
-def get_active_substances(soup, atc, index):
-    active_substances = []
-    parent = soup.find(attrs={"class": "SpaceBtm IndholdsstofferHeaderLinks"})
-    if parent == None:
-        noparent = soup.find(
-            title="Lægemidlet kan være helt udgået eller midlertidigt udgået pga. leveringssvigt"
-        )
-        print("In get_generic_name: Parent was none, index: ", index)
-        # print(noparent.text)
-        # return noparent.text
-        return active_substances
-    children = parent.find_all("b")
-
-    for b in children:
-        active_substances.append(b.text)
-    return active_substances
-
-
-def get_cyp(soup, atc, index, flockhart_dict):
-    active_substances = get_active_substances(soup, atc, index)
-    res = {}
-    if active_substances:
-        # if len(active_substances) > 1:
-        #     return "more than 1 active substance"
-        # else:
-        active_substance = active_substances[0].lower()
-        isoform_dict = get_drug_isoforms(active_substance, flockhart_dict)
-        # print(
-        #     "{0}, {1}, {2:<40} {3}".format(index, atc, active_substance, isoform_dict)
-        # )
-
-        more_substances = len(active_substances) > 1
-
-        for key, value in isoform_dict.items():
-            new_key = "CYP-" + key.lower()[:-1]
-            # print(new_key)
-            if value:
-                if more_substances:
-                    res[new_key] = "More than one active substance"
-                else:
-                    res[new_key] = ",".join(value)
-            else:
-                if more_substances:
-                    res[new_key] = "More than one active substance"
-                else:
-                    res[new_key] = "No"
-    else:  # to accommodate for no active substances found, quite hacky
-        for key in flockhart_dict.keys():
-            new_key = "CYP-" + key.lower()[:-1]
-            res[new_key] = ["no active substances"]
-    return res
-
 
 async def get(
     session: aiohttp.ClientSession,
     data: list,
-    flockhart_dict: dict,
 ):
     l_active_substance = data[1].lower()
     m_active_substance = data[2]
@@ -616,13 +446,6 @@ async def get(
     index = data[5]
     url = "https://pro.medicin.dk/Medicin/Praeparater/{}".format(index)
 
-    # if int(index) != 2525:
-    # if int(index) != 7837:
-    #     return None
-    # testresp = requests.get(url)
-    # testtext = testresp.text
-    # print(testtext)
-
     try:
         async with session.get(url) as response:
 
@@ -631,54 +454,37 @@ async def get(
             if status == 200 and length > 9000:
                 page = await response.text()
                 soup = BeautifulSoup(page, "lxml")
+
                 basis = {}
                 basis["Index"] = index
                 basis["Active substance"] = data[1]
                 basis["Atc"] = l_atc
+                basis["eGFR"] = get_renal_info(soup, index, l_atc)
+
                 basis["Pharmaceutical form"], basis["Pharmaceutical form dosage"] = (
                     get_pharmaceutical_form(soup, l_atc, index)
                 )
-                # basis = [index, l_atc]
                 basis["Revision date"] = get_revision_date(soup, l_atc, index)
                 text_header_dict = {
+                    "Doseringsforslag": "Dosage",
                     "Anvendelsesområder": "Registered indication",
                     "Kontraindikationer": "Contraindications",
                     "Forsigtighedsregler": "Warnings and precautions",
                 }
-                # text_headers = [
-                #     "Anvendelsesområder",
-                #     "Kontraindikationer",
-                #     "Forsigtighedsregler",
-                # ]
+
                 for text_header_danish, text_header_english in text_header_dict.items():
                     basis[text_header_english] = get_text(
                         soup, l_atc, index, text_header_danish
                     )
-                    # if text_header == "Forsigtighedsregler":
-                    #     print(get_text(soup, l_atc, index, text_header))
                 basis["Dosereduction liver"] = get_liver_info(
                     soup, l_atc, index, "Nedsat leverfunktion"
                 )
 
-                # basis["Pharmaceutical form"] = get_pharmaceutical_form(
-                #     soup, l_atc, index
-                # )
-
-                cyp_dict = get_cyp(soup, l_atc, index, flockhart_dict)
-                for k, v in cyp_dict.items():
-                    basis[k] = v
                 basis["Halftime"] = get_halftime(soup, l_atc, index, "Farmakokinetik")
 
-                # basis["Pharma html"] = get_pharma_html(soup, l_atc, index)
-
-                # basis.append(get_halftime(soup, l_atc, index, "Farmakokinetik"))
-                # basis.append(get_registered_indications(soup, l_atc, index))
-                # get_liver_info(soup, l_atc, index)
-                # basis.append(get_contraindications(soup, l_atc, index))
-                basis["eGFR"] = get_renal_info(soup, l_atc, index)
+                # basis["eGFR"] = get_renal_info(soup, index, l_atc)
 
                 return basis
-                # get_dose_reduction_info(soup, l_atc, index)
 
             else:
                 print("{}, not success or not long enough".format(index))
@@ -686,71 +492,39 @@ async def get(
         print("timeout error on index: ", index)
 
 
-def without_keys(d, keys):
-    return {x: d[x] for x in d if x not in keys}
-
-
-def expand_pharma_forms_scraping_results(input):
-    # print("SCRAPING RES")
-    # print(*res, sep="\n\n")
-    final_res = []
-    forms_key = "Pharmaceutical form"
-    amount_key = "Pharmaceutical form dosage"
-    return df.explode([forms_key, amount_key], ignore_index=True)
-    # atc_codes = list(set([x["Atc"] for x in final_res]))
-    for d in input:
-        pharma_forms = d[forms_key]
-        pharma_amount = d[amount_key]
-        # print(d["Index"], d["Atc"], len(pharma_forms))
-        for form, amount in zip(pharma_forms, pharma_amount):
-            new_dict = {}
-            for k, v in d.items():
-
-                if k != forms_key:
-                    new_dict[k] = v
-                else:
-                    new_dict[k] = form
-            final_res.append(new_dict)
-    # print("FINAL RES")
-    # print(*final_res, sep="\n\n")
-    return final_res
-
-
 def expand_pharma_forms(input):
     forms_key = "Pharmaceutical form"
     amount_key = "Pharmaceutical form dosage"
+    print(forms_key, amount_key)
     df = pd.DataFrame.from_dict(input)
     df = df.explode([forms_key, amount_key], ignore_index=True)
     return df
 
 
 def remove_pharma_duplicates(pharma_expanded_df):
-    # removes duplicate entries in list regarding atc and pharmaceutical form, keep the one with the latest date, otherwise the first encountered
-    # seen has (atc, pharmaceutical form, date)
+    # removes duplicate entries in list regarding atc and pharmaceutical form, keep the one with the latest date
 
     atc_key = "Atc"
     pharma_key = "Pharmaceutical form"
     date_key = "Revision date"
-    # df = pd.DataFrame.from_dict(input)
+    index_key = "Index"
     df = pharma_expanded_df
     cols_to_print = ["Index", atc_key, pharma_key, date_key]
     # print(df[cols_to_print])
+    df = df.sort_values([atc_key, index_key])
     df = df.sort_values(date_key).drop_duplicates([atc_key, pharma_key], keep="last")
-    df = df.sort_values([atc_key, "Index"], ascending=[True, True])
-    # print(df[cols_to_print])
+    # print("\n-----------", df[cols_to_print])
+    df = df.sort_values([atc_key, index_key], ascending=[True, True])
+    # print("\n-----------", df[cols_to_print])
     return df
 
 
-async def main(data):
+async def main(data, data_not_on_promed):
     timeout = aiohttp.ClientTimeout(total=6 * 60)
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        flockhart_dict = get_flockhart_dict()
-        scraping_res = await asyncio.gather(
-            *[get(session, d, flockhart_dict) for d in data]
-        )
+        scraping_res = await asyncio.gather(*[get(session, d) for d in data])
         only_res = [r for r in scraping_res if r]
 
-        # print(*only_res, sep="\n")
         print("original res: ", len(only_res))
         pharma_expanded_df = expand_pharma_forms(only_res)
         cols_to_print = [
@@ -770,11 +544,31 @@ async def main(data):
         # cols.remove("Pharmaceutical form dosage")
         # print(cols)
         # print(type(cols))
-        pharma_duplicate_free_df = pharma_duplicate_free_df.loc[
+
+        # removing pharmaceutical form dosage from final results, they were only used for getting correct pharmaceutical form
+        final_pharma_df = pharma_duplicate_free_df.loc[
             :, pharma_duplicate_free_df.columns != "Pharmaceutical form dosage"
         ]
-        print(pharma_duplicate_free_df.columns)
-        pharma_duplicate_free_df.to_csv(dst, index=False)
+        print(final_pharma_df.columns)
+
+        # adding empty entries for the atc codes not found on promed:
+        for d in data_not_on_promed:
+            na_text = "Not on ProMed"
+            new_row = {"Index": na_text, "Active substance": d[0], "Atc": d[1]}
+            start_index = len(new_row)
+            for col in final_pharma_df.columns[start_index:]:
+                new_row[col] = na_text
+            # print(new_row)
+            final_pharma_df = final_pharma_df._append(new_row, ignore_index=True)
+
+        # print(final_pharma_df[-3:])
+        final_pharma_df = final_pharma_df.sort_values(
+            ["Atc", "Index"], ascending=[True, True]
+        )
+        final_pharma_df.to_csv(dst, index=False, escapechar=None)
+
+        # cols_to_print = ["eGFR"]
+        # print(final_pharma_df["eGFR"].loc[final_pharma_df.index[0]])
 
         # columns = final_res[0].keys()
         # write_to_csv_renal(
@@ -786,8 +580,13 @@ async def main(data):
 
 if __name__ == "__main__":
     data = get_all_data_with_indices()
+    data_not_on_promed = get_data_not_on_promed()
+    print("Atc's NOT ON PROMED: ", data_not_on_promed)
     # print(len(data))
     # print(*data[:10], sep="\n")
+
+    to_skip = ["A01AB09", "A06AD15", "M02AA07", "A10AC04", "A10AE54", "A10BD10"]
+    to_keep_empty = ["A06AG02", "N02CX02"]
 
     start = perf_counter()
     # print(data[0])
@@ -795,13 +594,16 @@ if __name__ == "__main__":
     indices = ["3380"]
     indices = ["10675"]
     indices = ["5988", "5965", "10675"]
+    indices = ["2765"]
+    indices = ["521"]
+    indices = ["4651"]
     # indices = ["2605", "8316", "9517"]
     # data_used = [d for d in data if d[5] in indices[0]]
     # print(data_used)
-    data_used = data[:50]
+    data_used = data
     # data_used = [d for d in data if d[4] == "5965"]
     # print(data_used)
-    asyncio.run(main(data_used))
+    asyncio.run(main(data_used, data_not_on_promed))
     end = perf_counter()
 
     # print(f"{len(data) / (end - start)} req/s")
