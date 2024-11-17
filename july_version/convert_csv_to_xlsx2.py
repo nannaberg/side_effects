@@ -3,6 +3,24 @@ import pandas as pd
 import sys
 
 
+def convert_to_number(value):
+    try:
+        # Try to convert the value to a float (if possible)
+        return int(value)
+    except ValueError:
+        # If conversion fails, return the value as is (treat it as text)
+        return value
+
+
+def convert_to_date(value):
+    try:
+        # Try to convert the value to a date
+        return pd.to_datetime(value, errors="raise").date()
+    except ValueError:
+        # If conversion fails, return the value as is (keep it as a string)
+        return value
+
+
 n = len(sys.argv)
 if n <= 1:
     print("no argument was given")
@@ -14,6 +32,8 @@ else:
     else:
         # reading the csv file
         df = pd.read_csv(csv_to_convert)
+        df["Index"] = df["Index"].apply(convert_to_number)
+        df["Revision date"] = df["Revision date"].apply(convert_to_date)
         # creating an output excel file
         ex_name = csv_to_convert[:-4] + ".xlsx"
 
@@ -33,25 +53,21 @@ else:
 
             twrap = workbook.add_format({"text_wrap": True})
 
-            text_cols = [
-                "Dosage",
-                "Registered indication",
-                "Contraindications",
-                "Warnings and precautions",
-                "Dosereduction liver",
-                "Halftime",
-                "eGFR",
-            ]
+            width_dict = {
+                "Dosage": 60,
+                "Registered indication": 60,
+                "Contraindications": 60,
+                "Warnings and precautions": 60,
+                "Dosereduction liver": 60,
+                "Halftime": 60,
+                "eGFR": 60,
+                "Active substance": 50,
+                "Pharmaceutical form": 50,
+                "Revision date": 15,
+            }
 
-            for c in text_cols:
-                idx_location = df.columns.get_loc(c)
-                worksheet.set_column(idx_location, idx_location, 60, twrap)
-
-            other_cols = ["Active substance", "Revision date", "Pharmaceutical form"]
-
-            for c in other_cols:
-                idx_location = df.columns.get_loc(c)
-                worksheet.set_column(idx_location, idx_location, 30, twrap)
+            for k, v in width_dict.items():
+                idx_location = df.columns.get_loc(k)
+                worksheet.set_column(idx_location, idx_location, v, twrap)
+           
             print("all OK!")
-
-            # worksheet.set_row(0, 30, twrap)
