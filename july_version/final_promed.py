@@ -97,7 +97,6 @@ def check_unmerged_table(modified_rows, table, index, atc):
             actual = modified_rows[i][j]
             if column != "Advarsel":
                 if expected != actual:
-                    print(index, atc, expected, actual)
                     if not both_are_na(expected, actual):
                         raise Exception(
                             "A table test failed: {}, {}".format(index, atc)
@@ -322,7 +321,6 @@ def remove_last_period(pharma_forms):
 def get_all_bold(atc, index, markdown_text, pattern, exclusion_list):
     res = re.findall(pattern, markdown_text)
     res = [r for r in res if r not in exclusion_list]
-    # res = [r.lower() for r in res if r not in exclusion_list]
     contains_colored_tablets = False
     for r in res:
         if "tabletter" in r:
@@ -332,9 +330,6 @@ def get_all_bold(atc, index, markdown_text, pattern, exclusion_list):
                 break
     if contains_colored_tablets:
         res = ["Tabletter"]
-    #     print("{}, {}".format(index, atc))
-    #     print(res)
-    #     print("-----------------------")
     return res, contains_colored_tablets
 
 
@@ -459,11 +454,7 @@ async def get(
     session: aiohttp.ClientSession,
     data: list,
 ):
-    l_active_substance = data[1].lower()
-    m_active_substance = data[2]
-    # l_pharma_form = data[1]
     l_atc = data[3]
-    l_name = data[4]
     index = data[5]
     url = "https://pro.medicin.dk/Medicin/Praeparater/{}".format(index)
 
@@ -480,7 +471,6 @@ async def get(
                 basis["Index"] = index
                 basis["Active substance"] = data[1]
                 basis["Atc"] = l_atc
-                basis["eGFR"] = get_renal_info(soup, index, l_atc)
 
                 basis["Pharmaceutical form"], basis["Pharmaceutical form dosage"] = (
                     get_pharmaceutical_form(soup, l_atc, index)
@@ -503,7 +493,7 @@ async def get(
 
                 basis["Halftime"] = get_halftime(soup, l_atc, index, "Farmakokinetik")
 
-                # basis["eGFR"] = get_renal_info(soup, index, l_atc)
+                basis["eGFR"] = get_renal_info(soup, index, l_atc)
 
                 return basis
 
@@ -530,13 +520,9 @@ def remove_pharma_duplicates(pharma_expanded_df):
     date_key = "Revision date"
     index_key = "Index"
     df = pharma_expanded_df
-    cols_to_print = ["Index", atc_key, pharma_key, date_key]
-    # print(df[cols_to_print])
     df = df.sort_values([atc_key, index_key])
     df = df.sort_values(date_key).drop_duplicates([atc_key, pharma_key], keep="last")
-    # print("\n-----------", df[cols_to_print])
     df = df.sort_values([atc_key, index_key], ascending=[True, True])
-    # print("\n-----------", df[cols_to_print])
     return df
 
 
@@ -548,23 +534,10 @@ async def main(data, data_not_on_promed):
 
         print("original res: ", len(only_res))
         pharma_expanded_df = expand_pharma_forms(only_res)
-        cols_to_print = [
-            "Index",
-            "Atc",
-            "Pharmaceutical form",
-            "Pharmaceutical form dosage",
-            "Revision date",
-        ]
-        # print(pharma_expanded_df[cols_to_print])
         print("expanded res: ", pharma_expanded_df.shape[0])
         pharma_duplicate_free_df = remove_pharma_duplicates(pharma_expanded_df)
         print("duplicate free res: ", pharma_duplicate_free_df.shape[0])
-        # print(pharma_duplicate_free_df[cols_to_print])
         dst = "working_example.csv"
-        # cols = pharma_duplicate_free_df.columns
-        # cols.remove("Pharmaceutical form dosage")
-        # print(cols)
-        # print(type(cols))
 
         # removing pharmaceutical form dosage from final results, they were only used for getting correct pharmaceutical form
         final_pharma_df = pharma_duplicate_free_df.loc[
@@ -579,24 +552,12 @@ async def main(data, data_not_on_promed):
             start_index = len(new_row)
             for col in final_pharma_df.columns[start_index:]:
                 new_row[col] = na_text
-            # print(new_row)
             final_pharma_df = final_pharma_df._append(new_row, ignore_index=True)
 
-        # print(final_pharma_df[-3:])
         final_pharma_df = final_pharma_df.sort_values(
             ["Atc", "Index"], ascending=[True, True]
         )
         final_pharma_df.to_csv(dst, index=False, escapechar=None)
-
-        # cols_to_print = ["eGFR"]
-        # print(final_pharma_df["eGFR"].loc[final_pharma_df.index[0]])
-
-        # columns = final_res[0].keys()
-        # write_to_csv_renal(
-        #     final_res,
-        #     columns,
-        #     "working_example",
-        # )
 
 
 if __name__ == "__main__":
@@ -621,7 +582,7 @@ if __name__ == "__main__":
     # indices = ["2605", "8316", "9517"]
     # data_used = [d for d in data if d[5] in indices[0]]
     # print(data_used)
-    data_used = data
+    data_used = data[:100]
     # data_used = [d for d in data if d[4] == "5965"]
     # print(data_used)
     asyncio.run(main(data_used, data_not_on_promed))
