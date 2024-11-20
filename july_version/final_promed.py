@@ -96,7 +96,6 @@ def check_unmerged_table(modified_rows, table, index, atc):
             actual = modified_rows[i][j]
             if column != "Advarsel":
                 if expected != actual:
-                    print(expected, actual)
                     if not both_are_na(expected, actual):
                         raise Exception(
                             "A table test failed: {}, {}".format(index, atc)
@@ -220,14 +219,14 @@ def get_liver_info(soup, atc_code, index, text_header):
     return res
 
 
-# problem: sometimes several halftimes are indicated
+# is missing context: sometimes several halftimes are indicated, but this does not include the context needed to decipher that
 def get_halftime(soup, atc, index, text_header):
     res = "na"
     farmakokinetik = get_text(soup, atc, index, text_header)
     lines = farmakokinetik.split("\n")
     halftime_lines = []
     for line in lines:
-        if "halveringstid" in line:
+        if "halveringstid" in line.lower():
             halftime_lines.append(line)
 
     if halftime_lines:
