@@ -60,7 +60,11 @@ def get_text(soup, atc_code, index, text_header):
             )
 
         div = header.parent.find_next_sibling("div")
-        res = get_sanitized_html_markdown_text(div)
+        tables = div.find_all("table")
+        if tables:
+            res = "Contains text and table, to be done manually"
+        else:
+            res = get_sanitized_html_markdown_text(div)
     return res
 
 
@@ -215,7 +219,11 @@ def get_liver_info(soup, atc_code, index, text_header):
             )
 
         div = header.parent.find_next_sibling("div")
-        res = get_sanitized_html_markdown_text(div)
+        tables = div.find_all("table")
+        if tables:
+            res = "Contains text and tables, to be done manually"
+        else:
+            res = get_sanitized_html_markdown_text(div)
     return res
 
 
